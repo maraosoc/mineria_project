@@ -168,9 +168,9 @@ mineria_project/
 | Documento | Descripción |
 |-----------|-------------|
 | **[EXECUTION_GUIDE.md](EXECUTION_GUIDE.md)** | 📘 Guía completa paso a paso |
-| **[REORGANIZATION_SUMMARY.md](REORGANIZATION_SUMMARY.md)** | 📋 Resumen de la reorganización |
 | **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)** | ⚙️ Setup de AWS |
-| **[MIGRATION_SUMMARY.md](MIGRATION_SUMMARY.md)** | 📜 Historia de migración |
+| **[RESUMEN_EJECUTIVO.md](RESUMEN_EJECUTIVO.md)** | 📝 Resumen de cambios y mejoras .MD |
+
 
 ---
 
