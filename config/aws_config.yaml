@@ -1,0 +1,67 @@
+# AWS Configuration
+aws:
+  region: us-east-1
+  profile: default
+  
+s3:
+  bucket_name: mineria-data-bucket
+  paths:
+    raw_sentinel: raw_sentinel/
+    processed: 01_processed/
+    masks: 02_masks/
+    features: 03_features/
+    labels: 04_labels/
+    training_data: 05_training_data/
+    models: 06_models/
+    evaluation: 07_evaluation/
+    predictions: 08_predictions/
+    shapes: shapes/
+    scripts: scripts/
+    logs: logs/
+
+emr:
+  cluster_name: mineria-spark-cluster
+  release_label: emr-7.0.0  # Spark 3.5.0
+  log_uri: s3://mineria-data-bucket/logs/
+  
+  master_instance:
+    type: m5.xlarge
+    market: ON_DEMAND
+    ebs_size: 100
+  
+  core_instances:
+    type: m5.2xlarge
+    count: 3
+    market: SPOT
+    bid_price: "0.15"
+    ebs_size: 200
+  
+  applications:
+    - Spark
+    - Hadoop
+    - Hive
+    - Livy
+  
+  configurations:
+    - classification: spark-defaults
+      properties:
+        spark.executor.memory: 16g
+        spark.executor.cores: 4
+        spark.driver.memory: 8g
+        spark.driver.cores: 2
+        spark.sql.shuffle.partitions: 200
+        spark.default.parallelism: 200
+        spark.dynamicAllocation.enabled: "true"
+        spark.shuffle.service.enabled: "true"
+  
+  bootstrap_actions:
+    - name: install-python-packages
+      path: s3://mineria-data-bucket/scripts/bootstrap/install_packages.sh
+  
+  auto_termination:
+    enabled: true
+    idle_timeout: 3600  # 1 hour
+
+notifications:
+  sns_topic_arn: arn:aws:sns:us-east-1:ACCOUNT_ID:emr-notifications
+  email: your-email@domain.com
