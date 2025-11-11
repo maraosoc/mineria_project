@@ -49,6 +49,21 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 │  └─ Guardar → s3://bucket/04_labels/                   │
 │                                                          │
 │  Step 5: Unir Features + Labels                         │
+│  ├─ Join espacial por coordenadas                       │
+│  ├─ Filtrar píxeles válidos                            │
+│  └─ Guardar → s3://bucket/05_training_data/            │
+│                                                          │
+│  Step 6: Entrenar Modelos (Spark MLlib)                 │
+│  ├─ RandomForest + GradientBoosting                     │
+│  ├─ Optimización con TrainValidationSplit               │
+│  └─ Guardar → s3://bucket/06_models/                   │
+│                                                          │
+│  Step 7: Evaluar Modelos                                │
+│  ├─ Métricas completas (AUC, F1, Precision, Recall)    │
+│  ├─ Feature importance                                  │
+│  └─ Guardar → s3://bucket/07_evaluation/               │
+│                                                          │
+│  Step 5: Unir Features + Labels                         │
 │  ├─ Join espacial                                       │
 │  └─ Guardar → s3://bucket/05_training_data/            │
 │                                                          │
@@ -158,12 +173,15 @@ spark-submit \
   --stats median,p10,p90
 ```
 
-### Step 4-6: Training Pipeline
+### Step 4-7: Training Pipeline
 ```bash
 # Rasterizar labels
 spark-submit s3://bucket/scripts/04_rasterizar_labels.py \
   --bosque_shp s3://bucket/shapes/bosque.shp \
-  --output s3://bucket/04_labels/forest_labels.tif
+  --perimetro_shp s3://bucket/shapes/study_area.shp \
+  --ref s3://bucket/01_processed/20200112_sentinel20m_procesado.tif \
+  --output s3://bucket/04_labels/forest_labels.tif \
+  --erosion_pixels 2
 
 # Unir features + labels
 spark-submit s3://bucket/scripts/05_unir_features_labels.py \
@@ -176,9 +194,18 @@ spark-submit \
   --executor-memory 32g \
   --executor-cores 8 \
   s3://bucket/scripts/06_entrenar_modelos_spark.py \
-  --input s3://bucket/05_training_data/training.parquet \
-  --out_model s3://bucket/06_models/best_model \
-  --out_metrics s3://bucket/07_evaluation/
+  --inputs s3://bucket/05_training_data/training.parquet \
+  --out_model_dir s3://bucket/06_models/best_model \
+  --out_metrics_dir s3://bucket/07_evaluation/
+
+# Evaluar modelos
+spark-submit \
+  --executor-memory 16g \
+  s3://bucket/scripts/07_evaluar_modelos.py \
+  --model s3://bucket/06_models/best_model \
+  --test_data s3://bucket/05_training_data/training.parquet \
+  --output s3://bucket/07_evaluation/ \
+  --test_fraction 0.15
 ```
 
 ---

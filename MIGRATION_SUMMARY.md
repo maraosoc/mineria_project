@@ -311,10 +311,23 @@ aws s3 sync s3://mineria-data-dev/07_evaluation/ ./evaluation/
 ## 📚 Documentación
 
 ### Creada
-- ✅ **README.md** - Documentación principal y arquitectura
+- ✅ **README.md** - Documentación principal y arquitectura (actualizado con 7 steps)
 - ✅ **AWS_SETUP.md** - Guía paso a paso de configuración AWS
 - ✅ **aws_config.yaml** - Configuración AWS completa
 - ✅ **pipeline_config.yaml** - Parámetros del pipeline
+- ✅ **SCRIPTS_MIGRADOS.md** - Documentación detallada de scripts migrados (2,025 líneas)
+
+### Scripts Migrados (AWS S3/EMR Ready)
+- ✅ **02_generar_mascaras.py** (458 líneas) - Máscaras clear sky con SCL + heurísticas
+- ✅ **03_tabular_features.py** (424 líneas) - Tabulación y composite temporal con Polars
+- ✅ **04_rasterizar_labels.py** (389 líneas) - Rasterización con erosión morfológica
+- ✅ **05_unir_features_labels.py** (283 líneas) - Join features + labels por coordenadas
+- ✅ **07_evaluar_modelos.py** (471 líneas) - Evaluación completa con 9 métricas
+
+### Scripts Previamente Creados
+- ✅ **01_procesar_sentinel.py** (450+ líneas) - Procesamiento SAFE files con S3
+- ✅ **06_entrenar_modelos_spark.py** (464 líneas) - Training RF + GBT con Spark MLlib
+- ✅ **submit_emr_steps.py** (434 líneas) - Automatización EMR (actualizado con Step 7)
 
 ### Pendiente (Puedes crearla después)
 - ⏳ **EMR_GUIDE.md** - Guía detallada de EMR

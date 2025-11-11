@@ -272,6 +272,25 @@ class EMRJobSubmitter:
                         '--metric', self.pipeline_config['training']['optimization']['metric']
                     ]
                 }
+            },
+            
+            'evaluar_modelos': {
+                'Name': 'Step 7: Evaluar Modelos',
+                'ActionOnFailure': 'CONTINUE',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': [
+                        'spark-submit',
+                        '--deploy-mode', 'cluster',
+                        '--executor-memory', '16g',
+                        f'{s3_scripts}07_evaluar_modelos.py',
+                        '--model', f"s3://{self.bucket}/{self.s3_paths['models']}best_model",
+                        '--test_data', f"s3://{self.bucket}/{self.s3_paths['training_data']}training.parquet",
+                        '--output', f"s3://{self.bucket}/{self.s3_paths['evaluation']}",
+                        '--test_fraction', str(self.pipeline_config['training']['test_fraction']),
+                        '--seed', str(self.pipeline_config['training']['random_seed'])
+                    ]
+                }
             }
         }
         
@@ -336,12 +355,14 @@ class EMRJobSubmitter:
                 'tabular_features',
                 'rasterizar_labels',
                 'unir_features_labels',
-                'entrenar_modelos'
+                'entrenar_modelos',
+                'evaluar_modelos'
             ],
             'training_only': [
                 'rasterizar_labels',
                 'unir_features_labels',
-                'entrenar_modelos'
+                'entrenar_modelos',
+                'evaluar_modelos'
             ],
             'processing_only': [
                 'procesar_sentinel',
