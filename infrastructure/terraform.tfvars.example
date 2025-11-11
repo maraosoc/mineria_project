@@ -1,0 +1,43 @@
+# Terraform Variables - Example Configuration
+# ============================================
+# Copy this file to terraform.tfvars and customize with your values
+
+# AWS Configuration
+region  = "us-east-1"
+profile = "default"  # Your AWS CLI profile
+owner   = "your-name"
+
+# Project Settings
+project_name = "mineria"
+environment  = "dev"  # dev, staging, or prod
+
+# SSH Key (MUST be created in AWS EC2 console first)
+key_pair_name = "your-key-pair-name"  # CHANGE THIS!
+
+# EC2 Configuration (Scripts 01-05)
+ec2_instance_type    = "t3.xlarge"    # 4 vCPU, 16 GB RAM
+ec2_root_volume_size = 100            # GB
+
+# EMR Configuration (Scripts 06-07)
+create_emr_cluster       = false              # Set to true to create immediately
+emr_cluster_name         = "mineria-spark"
+emr_release_label        = "emr-7.0.0"        # Spark 3.5.0
+emr_master_instance_type = "m5.xlarge"        # 4 vCPU, 16 GB RAM
+emr_core_instance_type   = "m5.2xlarge"       # 8 vCPU, 32 GB RAM
+emr_core_instance_count  = 2                  # Number of worker nodes
+emr_auto_terminate       = false              # Keep cluster running
+
+# Notes:
+# ------
+# 1. Create your SSH key pair first:
+#    aws ec2 create-key-pair --key-name mineria-key --query 'KeyMaterial' --output text > mineria-key.pem
+#    chmod 400 mineria-key.pem
+#
+# 2. Set create_emr_cluster = false to save costs
+#    EMR clusters can be created on-demand using run_emr_pipeline.py
+#
+# 3. Estimated costs (us-east-1):
+#    - EC2 t3.xlarge: ~$0.17/hour
+#    - EMR m5.xlarge master: ~$0.19/hour
+#    - EMR m5.2xlarge core (x2): ~$0.76/hour
+#    Total with EMR: ~$1.12/hour

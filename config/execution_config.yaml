@@ -1,0 +1,209 @@
+# Configuración de Ejecución del Pipeline Minería
+# =================================================
+
+# Entornos de Ejecución
+execution:
+  # Scripts 01-05 se ejecutan en EC2
+  ec2_scripts:
+    - "01_procesar_sentinel"
+    - "02_generar_mascaras"
+    - "03_tabular_features"
+    - "04_rasterizar_labels"
+    - "05_unir_features_labels"
+  
+  # Scripts 06-07 se ejecutan en EMR con Spark
+  emr_scripts:
+    - "06_entrenar_modelos_spark"
+    - "07_evaluar_modelos"
+
+# Configuración EC2
+ec2:
+  # Path donde se instalarán los scripts en EC2
+  scripts_dir: /home/ubuntu/mineria_scripts
+  
+  # Directorio de trabajo temporal
+  work_dir: /home/ubuntu/mineria_work
+  
+  # Directorio para logs
+  log_dir: /home/ubuntu/mineria_logs
+  
+  # Python virtual environment
+  venv_path: /home/ubuntu/mineria_venv
+  
+  # Recursos
+  memory_limit: 8GB
+  cpu_cores: 4
+
+# Configuración EMR
+emr:
+  # Configuración del cluster (puede ser existente o nuevo)
+  create_new_cluster: false  # Si es false, usar cluster_id existente
+  cluster_id: ""  # Rellenar si create_new_cluster=false
+  
+  # Configuración para nuevo cluster
+  cluster_config:
+    name: mineria-processing-cluster
+    release_label: emr-7.0.0
+    log_uri: s3://mineria-data-bucket/logs/emr/
+    
+    master_instance:
+      type: m5.xlarge
+      market: ON_DEMAND
+    
+    core_instances:
+      type: m5.2xlarge
+      count: 2
+      market: SPOT
+      bid_price: "0.20"
+    
+    auto_terminate: true  # Terminar después de completar
+    idle_timeout: 1800    # 30 minutos
+  
+  # Configuración Spark
+  spark_config:
+    executor_memory: 8g
+    executor_cores: 4
+    driver_memory: 4g
+
+# Validación entre pasos
+validation:
+  # Validar que cada paso produjo outputs antes de continuar
+  check_outputs: true
+  
+  # Esperar este tiempo (segundos) antes de validar outputs
+  wait_before_check: 30
+  
+  # Reintentos si falla validación
+  max_retries: 3
+  retry_delay: 60
+
+# Configuración de Logs
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  
+  # Formato de log
+  format: "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s"
+  
+  # Guardar logs en S3
+  upload_to_s3: true
+  s3_log_prefix: logs/pipeline_runs/
+  
+  # Retener logs locales
+  keep_local: true
+  local_retention_days: 7
+
+# Notificaciones
+notifications:
+  enabled: false  # Habilitar cuando se configure SNS
+  sns_topic_arn: ""
+  
+  # Notificar en estos eventos
+  events:
+    - pipeline_start
+    - pipeline_complete
+    - pipeline_error
+    - step_error
+
+# Parámetros por Script
+script_params:
+  "01_procesar_sentinel":
+    bands: "B01,B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12"
+    resolution: 20
+    indices: "NDVI,NDWI,NDBI"
+    target_crs: "EPSG:4326"
+    chunk_size: 1024
+  
+  "02_generar_mascaras":
+    cloud_threshold: 50
+    shadow_threshold: 10
+    clear_sky_min: 70
+  
+  "03_tabular_features":
+    aggregations: "mean,std,min,max,p10,p90"
+    temporal_window: 30  # días
+  
+  "04_rasterizar_labels":
+    pixel_size: 20
+    buffer_distance: -60  # erosión de bordes en metros
+    burn_value: 1
+  
+  "05_unir_features_labels":
+    join_method: "spatial"
+    filter_valid: true
+    min_samples_per_class: 1000
+  
+  "06_entrenar_modelos_spark":
+    models: "RandomForest,GradientBoostedTrees"
+    test_fraction: 0.20
+    validation_fraction: 0.15
+    max_depth: [5, 10, 15]
+    num_trees: [50, 100, 150]
+    seed: 42
+  
+  "07_evaluar_modelos":
+    metrics: "accuracy,precision,recall,f1,auc_roc,auc_pr"
+    confusion_matrix: true
+    feature_importance: true
+    threshold_analysis: true
+
+# Paths S3 (heredados de aws_config.yaml)
+s3_paths:
+  bucket: mineria-data-bucket
+  raw_sentinel: raw_sentinel/
+  processed: 01_processed/
+  masks: 02_masks/
+  features: 03_features/
+  labels: 04_labels/
+  training_data: 05_training_data/
+  models: 06_models/
+  evaluation: 07_evaluation/
+
+# Control de Ejecución
+control:
+  # Modo de ejecución
+  mode: individual  # individual, sequential, parallel
+  
+  # En modo individual, especificar cuál ejecutar
+  target_script: ""  # e.g., "01_procesar_sentinel"
+  
+  # En modo sequential, ejecutar hasta este paso
+  stop_after: ""  # e.g., "03_tabular_features"
+  
+  # Continuar si un paso falla (solo en modo testing)
+  continue_on_error: false
+  
+  # Dry run (simular sin ejecutar)
+  dry_run: false
+
+# Monitoreo
+monitoring:
+  # Verificar estado cada N segundos
+  check_interval: 60
+  
+  # Timeout máximo por script (segundos)
+  timeouts:
+    "01_procesar_sentinel": 7200    # 2 horas
+    "02_generar_mascaras": 3600     # 1 hora
+    "03_tabular_features": 5400     # 1.5 horas
+    "04_rasterizar_labels": 1800    # 30 minutos
+    "05_unir_features_labels": 3600 # 1 hora
+    "06_entrenar_modelos_spark": 10800  # 3 horas
+    "07_evaluar_modelos": 1800      # 30 minutos
+  
+  # Alertar si uso de recursos excede
+  resource_alerts:
+    cpu_threshold: 90
+    memory_threshold: 85
+    disk_threshold: 80
+
+# Desarrollo y Testing
+development:
+  # Usar subset de datos
+  use_sample_data: false
+  sample_size: 100
+  
+  # Skip pasos ya completados
+  skip_completed: false
+  
+  # Limpiar outputs intermedios
+  cleanup_intermediate: false
