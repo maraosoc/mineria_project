@@ -355,7 +355,7 @@ Ejemplo local (para testing):
     # Procesar cada raster
     results = []
     for i, s3_input in enumerate(input_files, 1):
-        print(f"\n{'─'*70}")
+        print(f"\n{'='*70}")
         print(f"Procesando {i}/{len(input_files)}")
         
         try:

@@ -1,0 +1,185 @@
+{
+  "timestamp": "20251112_163653",
+  "execution_date": "2025-11-12T16:36:53.147866",
+  "summary": {
+    "total_zones_processed": 6,
+    "successful_zones": 5,
+    "failed_zones": 1,
+    "total_duration_seconds": 64.662893
+  },
+  "consolidation": {
+    "output_path": "s3://mineria-project/data/all/training_data_all_zones.parquet",
+    "total_samples": 8008,
+    "total_bosque": 1820,
+    "total_no_bosque": 6188,
+    "zones": 5,
+    "zone_stats": [
+      {
+        "zone": "14_ElDanubio_Granada_Meta",
+        "total_samples": 432,
+        "bosque": 20,
+        "no_bosque": 412,
+        "ratio": 20.6,
+        "pct_bosque": 4.62962962962963
+      },
+      {
+        "zone": "29_Cuiva_SantaRosadeOsos_Antioquia",
+        "total_samples": 4306,
+        "bosque": 1104,
+        "no_bosque": 3202,
+        "ratio": 2.9003623188405796,
+        "pct_bosque": 25.63864375290293
+      },
+      {
+        "zone": "32_LosNaranjos_Venecia_Antioquia",
+        "total_samples": 1498,
+        "bosque": 644,
+        "no_bosque": 854,
+        "ratio": 1.326086956521739,
+        "pct_bosque": 42.99065420560748
+      },
+      {
+        "zone": "35_Bellavista_Alb\u00e1n_Cundinamarca",
+        "total_samples": 271,
+        "bosque": 50,
+        "no_bosque": 221,
+        "ratio": 4.42,
+        "pct_bosque": 18.45018450184502
+      },
+      {
+        "zone": "79_SanJer\u00f3nimo_Pore_Casanare",
+        "total_samples": 1501,
+        "bosque": 2,
+        "no_bosque": 1499,
+        "ratio": 749.5,
+        "pct_bosque": 0.13324450366422386
+      }
+    ]
+  },
+  "zone_details": [
+    {
+      "zone": "14_ElDanubio_Granada_Meta",
+      "status": "success",
+      "duration": 10.351835,
+      "results": [
+        {
+          "status": "success",
+          "zone": "14_ElDanubio_Granada_Meta",
+          "step": "03_features"
+        },
+        {
+          "status": "success",
+          "zone": "14_ElDanubio_Granada_Meta",
+          "step": "04_labels"
+        },
+        {
+          "status": "success",
+          "zone": "14_ElDanubio_Granada_Meta",
+          "step": "05_union"
+        }
+      ]
+    },
+    {
+      "zone": "29_Cuiva_SantaRosadeOsos_Antioquia",
+      "status": "success",
+      "duration": 10.482532,
+      "results": [
+        {
+          "status": "success",
+          "zone": "29_Cuiva_SantaRosadeOsos_Antioquia",
+          "step": "03_features"
+        },
+        {
+          "status": "success",
+          "zone": "29_Cuiva_SantaRosadeOsos_Antioquia",
+          "step": "04_labels"
+        },
+        {
+          "status": "success",
+          "zone": "29_Cuiva_SantaRosadeOsos_Antioquia",
+          "step": "05_union"
+        }
+      ]
+    },
+    {
+      "zone": "32_LosNaranjos_Venecia_Antioquia",
+      "status": "success",
+      "duration": 9.955358,
+      "results": [
+        {
+          "status": "success",
+          "zone": "32_LosNaranjos_Venecia_Antioquia",
+          "step": "03_features"
+        },
+        {
+          "status": "success",
+          "zone": "32_LosNaranjos_Venecia_Antioquia",
+          "step": "04_labels"
+        },
+        {
+          "status": "success",
+          "zone": "32_LosNaranjos_Venecia_Antioquia",
+          "step": "05_union"
+        }
+      ]
+    },
+    {
+      "zone": "35_Bellavista_Alb\u00e1n_Cundinamarca",
+      "status": "success",
+      "duration": 12.812865,
+      "results": [
+        {
+          "status": "success",
+          "zone": "35_Bellavista_Alb\u00e1n_Cundinamarca",
+          "step": "03_features"
+        },
+        {
+          "status": "success",
+          "zone": "35_Bellavista_Alb\u00e1n_Cundinamarca",
+          "step": "04_labels"
+        },
+        {
+          "status": "success",
+          "zone": "35_Bellavista_Alb\u00e1n_Cundinamarca",
+          "step": "05_union"
+        }
+      ]
+    },
+    {
+      "zone": "42_VillaLuzA_Ungu\u00eda_Choc\u00f3",
+      "status": "error",
+      "failed_step": "03_features",
+      "duration": 9.593893,
+      "results": [
+        {
+          "status": "error",
+          "zone": "42_VillaLuzA_Ungu\u00eda_Choc\u00f3",
+          "step": "03_features",
+          "error": "Command '['python', 'scripts/03_tabular_features.py', '--rasters', 's3://mineria-project/staging/01_rasters_procesados_clipped/42_VillaLuzA_Ungu\u00eda_Choc\u00f3/', '--output', 's3://mineria-project/data/fincas/42_VillaLuzA_Ungu\u00eda_Choc\u00f3/composite_annual.parquet', '--save_observations', '--observations', 's3://mineria-project/data/fincas/42_VillaLuzA_Ungu\u00eda_Choc\u00f3/observations_all.parquet']' returned non-zero exit status 1."
+        }
+      ]
+    },
+    {
+      "zone": "79_SanJer\u00f3nimo_Pore_Casanare",
+      "status": "success",
+      "duration": 11.46641,
+      "results": [
+        {
+          "status": "success",
+          "zone": "79_SanJer\u00f3nimo_Pore_Casanare",
+          "step": "03_features"
+        },
+        {
+          "status": "success",
+          "zone": "79_SanJer\u00f3nimo_Pore_Casanare",
+          "step": "04_labels"
+        },
+        {
+          "status": "success",
+          "zone": "79_SanJer\u00f3nimo_Pore_Casanare",
+          "step": "05_union"
+        }
+      ]
+    }
+  ]
+}

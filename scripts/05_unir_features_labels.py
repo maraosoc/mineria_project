@@ -9,8 +9,8 @@ para generar tabla de entrenamiento.
 Pipeline integrado con AWS S3:
 - Lee composite anual desde S3 (03_features/composite_annual.parquet)
 - Lee raster de etiquetas desde S3 (04_labels/forest_labels.tif)
-- Extrae etiqueta para cada píxel usando coordenadas (x, y)
-- Filtra píxeles con label != -1 (excluye "ignorar")
+- Extrae etiqueta para cada pixel usando coordenadas (x, y)
+- Filtra pixeles con label != -1 (excluye "ignorar")
 - Guarda tabla de entrenamiento en S3 (05_training_data/)
 
 Output:
@@ -85,7 +85,7 @@ def extract_label_from_raster(
         Array de labels (int16)
     """
     with rasterio.open(label_raster_path) as src:
-        # Convertir coordenadas geográficas a índices de píxel
+        # Convertir coordenadas geográficas a índices de pixel
         rows, cols = rasterio.transform.rowcol(src.transform, x_coords, y_coords)
         
         # Leer raster completo
@@ -131,20 +131,20 @@ Ejemplo local (para testing):
     parser.add_argument("--format", choices=["parquet", "csv"], default="parquet",
                        help="Formato de salida (default: parquet)")
     parser.add_argument("--exclude_ignore", action="store_true", default=True,
-                       help="Excluir píxeles con label=-1 (ignorar). Default: True")
+                       help="Excluir pixeles con label=-1 (ignorar). Default: True")
     
     args = parser.parse_args()
     
     print("\n" + "="*70)
-    print("UNIÓN DE FEATURES + LABELS → TABLA DE ENTRENAMIENTO")
+    print("UNIÓN DE FEATURES + LABELS -> TABLA DE ENTRENAMIENTO")
     print("="*70)
     
     # Validar paths S3
     if not all(p.startswith('s3://') for p in [args.features, args.labels, args.output]):
-        print(f"\n❌ Error: Todos los paths deben ser S3 (s3://...)")
+        print(f"\n[ERROR] Error: Todos los paths deben ser S3 (s3://...)")
         sys.exit(1)
     
-    print(f"\n📂 Archivos de entrada:")
+    print(f"\n Archivos de entrada:")
     print(f"   Features: {args.features}")
     print(f"   Labels: {args.labels}")
     print(f"   Output: {args.output}")
@@ -156,7 +156,7 @@ Ejemplo local (para testing):
     
     with tempfile.TemporaryDirectory() as tmpdir:
         # --- 1) Descargar features desde S3
-        print(f"\n📊 Descargando features anuales...")
+        print(f"\n Descargando features anuales...")
         local_features = os.path.join(tmpdir, "composite_annual.parquet")
         s3_handler.download_file(args.features, local_features)
         
@@ -165,27 +165,27 @@ Ejemplo local (para testing):
         n_features = len(df_features)
         n_cols_features = len(df_features.columns)
         
-        print(f"   ✓ {n_features:,} píxeles cargados")
-        print(f"   ✓ {n_cols_features} columnas (features)")
+        print(f"   [OK] {n_features:,} pixeles cargados")
+        print(f"   [OK] {n_cols_features} columnas (features)")
         
         feature_cols = [col for col in df_features.columns if col not in ['x', 'y']]
-        print(f"   ✓ Features disponibles: {', '.join(feature_cols[:5])}... ({len(feature_cols)} total)")
+        print(f"   [OK] Features disponibles: {', '.join(feature_cols[:5])}... ({len(feature_cols)} total)")
         
         # --- 2) Descargar raster de etiquetas desde S3
-        print(f"\n🏷️  Descargando raster de etiquetas...")
+        print(f"\n  Descargando raster de etiquetas...")
         local_labels = os.path.join(tmpdir, "forest_labels.tif")
         s3_handler.download_file(args.labels, local_labels)
         
-        # --- 3) Extraer etiquetas para cada píxel
-        print(f"\n🔍 Extrayendo etiquetas del raster...")
+        # --- 3) Extraer etiquetas para cada pixel
+        print(f"\n Extrayendo etiquetas del raster...")
         x_coords = df_features['x'].to_numpy()
         y_coords = df_features['y'].to_numpy()
         
         labels = extract_label_from_raster(x_coords, y_coords, local_labels)
         
-        print(f"   ✓ {len(labels):,} etiquetas extraídas")
+        print(f"   [OK] {len(labels):,} etiquetas extraídas")
         
-        # Estadísticas de etiquetas
+        # Estadisticas de etiquetas
         n_bosque = np.sum(labels == 1)
         n_no_bosque = np.sum(labels == 0)
         n_ignorar = np.sum(labels == -1)
@@ -196,27 +196,27 @@ Ejemplo local (para testing):
         print(f"      Ignorar (-1):    {n_ignorar:,} ({n_ignorar/len(labels)*100:.1f}%)")
         
         # --- 4) Agregar etiquetas al DataFrame
-        print(f"\n🔗 Uniendo features + labels...")
+        print(f"\n Uniendo features + labels...")
         df_features = df_features.with_columns(
             pl.Series("label", labels, dtype=pl.Int16)
         )
         
-        # --- 5) Filtrar píxeles "ignorar" si se especifica
+        # --- 5) Filtrar pixeles "ignorar" si se especifica
         if args.exclude_ignore:
-            print(f"\n🔍 Filtrando píxeles con label=-1 (ignorar)...")
+            print(f"\n Filtrando pixeles con label=-1 (ignorar)...")
             df_training = df_features.filter(pl.col("label") != -1)
             n_removed = len(df_features) - len(df_training)
-            print(f"   ✓ {n_removed:,} píxeles removidos")
-            print(f"   ✓ {len(df_training):,} píxeles válidos restantes")
+            print(f"   [OK] {n_removed:,} pixeles removidos")
+            print(f"   [OK] {len(df_training):,} pixeles válidos restantes")
         else:
             df_training = df_features
-            print(f"\n○ Conservando todos los píxeles (incluye label=-1)")
+            print(f"\n Conservando todos los pixeles (incluye label=-1)")
         
-        # Estadísticas finales
+        # Estadisticas finales
         n_final_bosque = df_training.filter(pl.col("label") == 1).shape[0]
         n_final_no_bosque = df_training.filter(pl.col("label") == 0).shape[0]
         
-        print(f"\n📊 Datos de entrenamiento finales:")
+        print(f"\n Datos de entrenamiento finales:")
         print(f"   Total samples: {len(df_training):,}")
         print(f"   Bosque (1):    {n_final_bosque:,} ({n_final_bosque/len(df_training)*100:.1f}%)")
         print(f"   No-Bosque (0): {n_final_no_bosque:,} ({n_final_no_bosque/len(df_training)*100:.1f}%)")
@@ -226,7 +226,7 @@ Ejemplo local (para testing):
             print(f"   Ratio: {ratio:.2f}:1")
             
             if ratio > 10 or ratio < 0.1:
-                print(f"   ⚠️  Desbalance significativo - considerar:")
+                print(f"   [WARN]  Desbalance significativo - considerar:")
                 print(f"      - class_weight='balanced' en modelo")
                 print(f"      - Ajustar erosion_pixels en 04_rasterizar_labels.py")
         
@@ -234,7 +234,7 @@ Ejemplo local (para testing):
         print(f"   Columnas totales: {len(df_training.columns)}")
         
         # --- 6) Guardar tabla de entrenamiento
-        print(f"\n💾 Guardando tabla de entrenamiento...")
+        print(f"\n Guardando tabla de entrenamiento...")
         
         if args.format == "parquet":
             local_output = os.path.join(tmpdir, "training_data.parquet")
@@ -244,32 +244,32 @@ Ejemplo local (para testing):
             df_training.write_csv(local_output)
         
         size_mb = Path(local_output).stat().st_size / (1024**2)
-        print(f"   ✓ Formato: {args.format.upper()}")
-        print(f"   ✓ Tamaño: {size_mb:.2f} MB")
+        print(f"   [OK] Formato: {args.format.upper()}")
+        print(f"   [OK] Tamaño: {size_mb:.2f} MB")
         
         # Subir a S3
         s3_handler.upload_file(local_output, args.output)
-        print(f"   ✓ Archivo guardado: {args.output}")
+        print(f"   [OK] Archivo guardado: {args.output}")
     
     # Resumen final
     print(f"\n" + "="*70)
-    print("✅ TABLA DE ENTRENAMIENTO GENERADA")
+    print("[OK] TABLA DE ENTRENAMIENTO GENERADA")
     print("="*70)
     
-    print(f"\n📊 Resumen:")
-    print(f"   Píxeles totales: {n_features:,}")
-    print(f"   Píxeles válidos: {len(df_training):,}")
+    print(f"\n Resumen:")
+    print(f"   Pixeles totales: {n_features:,}")
+    print(f"   Pixeles válidos: {len(df_training):,}")
     print(f"   Bosque: {n_final_bosque:,}")
     print(f"   No-Bosque: {n_final_no_bosque:,}")
     print(f"   Features: {len(feature_cols)}")
     
-    print(f"\n📂 Output:")
+    print(f"\n Output:")
     print(f"   {args.output}")
     
-    print(f"\n📋 Siguiente paso:")
-    print(f"   Entrenar modelo Random Forest + GBT → 06_entrenar_modelos_spark.py")
+    print(f"\n Siguiente paso:")
+    print(f"   Entrenar modelo Random Forest + GBT -> 06_entrenar_modelos_spark.py")
     
-    print(f"\n💡 Ejemplo de uso del archivo generado:")
+    print(f"\n Ejemplo de uso del archivo generado:")
     print(f"""
 # En PySpark:
 from pyspark.sql import SparkSession
