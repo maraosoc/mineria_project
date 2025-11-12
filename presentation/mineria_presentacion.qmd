@@ -138,13 +138,13 @@ Resumen del dataset (ejemplo reciente)
 ## Metodología (diagrama de flujo)
 
 <div style="display:flex; align-items:center; justify-content:center; height:80vh; width:100%; margin-top:3vh;">
-  <div style="display:flex; align-items:center; justify-content:center; gap:28px; flex-wrap:nowrap; width:100%;">
-    <img src="C:/Users/jmox0/Documents/AWS1.jpg" alt="AWS paso 1" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
-    <span style="font-size:48px; line-height:1;">→</span>
-    <img src="C:/Users/jmox0/Documents/AWS2.jpg" alt="AWS paso 2" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
-    <span style="font-size:48px; line-height:1;">→</span>
-    <img src="C:/Users/jmox0/Documents/AWS3.jpg" alt="AWS paso 3" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
-  </div>
+<div style="display:flex; align-items:center; justify-content:center; gap:28px; flex-wrap:nowrap; width:100%;">
+<img src="C:/Users/jmox0/Documents/AWS1.jpg" alt="AWS paso 1" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
+<span style="font-size:48px; line-height:1;">&rarr;</span>
+<img src="C:/Users/jmox0/Documents/AWS2.jpg" alt="AWS paso 2" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
+<span style="font-size:48px; line-height:1;">&rarr;</span>
+<img src="C:/Users/jmox0/Documents/AWS3.jpg" alt="AWS paso 3" style="max-height:22vh; height:auto; width:auto; object-fit:contain;" />
+</div>
 </div>
 
 ---
