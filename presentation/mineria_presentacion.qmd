@@ -15,6 +15,11 @@ format:
     smaller: true
     mermaid:
       theme: default
+    width: 1600
+    height: 900
+    maxScale: 2
+    minScale: 0.2
+    margin: 0.04
 execute:
   echo: false
   warning: false
@@ -73,7 +78,7 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosqu
 
 ---
 
-## Ingesta de datos (workflow.pdf p. 3)
+## Ingesta de datos 
 
 Dos componentes principales:
 
@@ -99,12 +104,22 @@ Notas:
 
 <!-- Aumentar tamaño del diagrama en Reveal.js -->
 <style>
-.reveal .slides .mermaid svg { width: 100% !important; height: 78vh !important; }
+.reveal .slides .mermaid svg { width: 100% !important; height: 90vh !important; }
 .reveal .slides .mermaid { margin: 0 auto; }
 </style>
 
 ```{mermaid}
-%%{init: {'flowchart': {'curve':'basis','rankSpacing':90,'nodeSpacing':60}, 'themeVariables': {'fontSize': '18px'}} }%%
+%%{init: {
+  'flowchart': {
+    'curve': 'basis',
+    'rankSpacing': 140,
+    'nodeSpacing': 140
+  },
+  'themeVariables': {
+    'fontSize': '22px',
+    'lineHeight': '24px'
+  }
+} }%%
 flowchart LR
 
 %% ======== SECCIONES PRINCIPALES ========
