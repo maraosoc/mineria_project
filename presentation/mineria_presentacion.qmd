@@ -102,8 +102,8 @@ Notas:
 
 ## Metodología (diagrama de flujo)
 
-<div style="display:flex; align-items:center; justify-content:center; height:85vh; width:100%;">
-  <img src="C:/Users/jmox0/Documents/mermaid.png" alt="Diagrama de flujo de la metodología" style="max-height:85vh; max-width:100%; height:auto; width:auto; object-fit:contain;" />
+<div style="display:flex; align-items:center; justify-content:center; height:80vh; width:100%; margin-top:3vh;">
+  <img src="C:/Users/jmox0/Documents/mermaid2.png" alt="Diagrama de flujo de la metodología" style="max-height:85vh; max-width:100%; height:auto; width:auto; object-fit:contain;" />
 </div>
 
 ---
