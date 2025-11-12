@@ -190,11 +190,19 @@ def main():
     class_weights = compute_class_weights(df, args.label_col)
     df = add_balanced_weights(df, args.label_col, class_weights)
 
-    # 2) Split aleatorio train/test (hold-out externo)
-    train_df, test_df = df.randomSplit([1.0 - args.test_frac, args.test_frac], seed=args.seed)
+    # 2) Split aleatorio train/val/test (70/15/15 por defecto)
+    train_frac = 1.0 - (args.test_frac * 2)  # 70% train
+    val_frac = args.test_frac  # 15% validation
+    test_frac = args.test_frac  # 15% test
     
-    print(f"\n  Train muestras: {train_df.count():,}")
-    print(f"  Test muestras: {test_df.count():,}")
+    train_df, val_df, test_df = df.randomSplit(
+        [train_frac, val_frac, test_frac], 
+        seed=args.seed
+    )
+    
+    print(f"\n  Train muestras: {train_df.count():,} ({train_frac*100:.0f}%)")
+    print(f"  Validation muestras: {val_df.count():,} ({val_frac*100:.0f}%)")
+    print(f"  Test muestras: {test_df.count():,} ({test_frac*100:.0f}%)")
 
     evaluator = BinaryClassificationEvaluator(labelCol=args.label_col, rawPredictionCol="rawPrediction", metricName=args.metric)
 
@@ -233,12 +241,22 @@ def main():
     rf_best_pipeline = rf_tvs_model.bestModel  # PipelineModel ya ajustado sobre todo train_df
     rf_best_params = {p.name: rf_tvs_model.bestModel.stages[-1].getOrDefault(p) for p in rf_tvs_model.bestModel.stages[-1].params}
 
-    rf_val_metric = max(rf_tvs_model.validationMetrics) if hasattr(rf_tvs_model, "validationMetrics") else None
+    rf_internal_val_metric = max(rf_tvs_model.validationMetrics) if hasattr(rf_tvs_model, "validationMetrics") else None
+    
+    # Evaluar en validation set externo
+    rf_val_pred = rf_best_pipeline.transform(val_df)
+    rf_val_metrics = compute_all_metrics(rf_val_pred, args.label_col, "val_")
+    rf_val_metric = rf_val_metrics[f"val_{args.metric}"]
+    
+    # Evaluar en test set
     rf_test_pred = rf_best_pipeline.transform(test_df)
     rf_test_metrics = compute_all_metrics(rf_test_pred, args.label_col, "test_")
     rf_test_metric = rf_test_metrics[f"test_{args.metric}"]
     
-    print(f"\n  ✓ Mejor {args.metric} en validación: {rf_val_metric:.4f}")
+    print(f"\n  ✓ Mejor {args.metric} en validación interna: {rf_internal_val_metric:.4f}")
+    print(f"  ✓ Métricas en VALIDATION SET:")
+    for k, v in rf_val_metrics.items():
+        print(f"      {k.replace('val_', '')}: {v:.4f}")
     print(f"  ✓ Métricas en TEST:")
     for k, v in rf_test_metrics.items():
         print(f"      {k.replace('test_', '')}: {v:.4f}")
@@ -279,29 +297,41 @@ def main():
     gbt_best_pipeline = gbt_tvs_model.bestModel
     gbt_best_params = {p.name: gbt_tvs_model.bestModel.stages[-1].getOrDefault(p) for p in gbt_tvs_model.bestModel.stages[-1].params}
 
-    gbt_val_metric = max(gbt_tvs_model.validationMetrics) if hasattr(gbt_tvs_model, "validationMetrics") else None
+    gbt_internal_val_metric = max(gbt_tvs_model.validationMetrics) if hasattr(gbt_tvs_model, "validationMetrics") else None
+    
+    # Evaluar en validation set externo
+    gbt_val_pred = gbt_best_pipeline.transform(val_df)
+    gbt_val_metrics = compute_all_metrics(gbt_val_pred, args.label_col, "val_")
+    gbt_val_metric = gbt_val_metrics[f"val_{args.metric}"]
+    
+    # Evaluar en test set
     gbt_test_pred = gbt_best_pipeline.transform(test_df)
     gbt_test_metrics = compute_all_metrics(gbt_test_pred, args.label_col, "test_")
     gbt_test_metric = gbt_test_metrics[f"test_{args.metric}"]
     
-    print(f"\n  ✓ Mejor {args.metric} en validación: {gbt_val_metric:.4f}")
+    print(f"\n  ✓ Mejor {args.metric} en validación interna: {gbt_internal_val_metric:.4f}")
+    print(f"  ✓ Métricas en VALIDATION SET:")
+    for k, v in gbt_val_metrics.items():
+        print(f"      {k.replace('val_', '')}: {v:.4f}")
     print(f"  ✓ Métricas en TEST:")
     for k, v in gbt_test_metrics.items():
         print(f"      {k.replace('test_', '')}: {v:.4f}")
 
     # -------------------------
-    # Selección del mejor (por métrica en TEST)
+    # Selección del mejor (por métrica en VALIDATION SET)
     # -------------------------
     print(f"\n{'='*70}")
     print("COMPARACIÓN DE MODELOS")
     print(f"{'='*70}")
-    print(f"  RandomForest - {args.metric}: {rf_test_metric:.4f}")
-    print(f"  GBT          - {args.metric}: {gbt_test_metric:.4f}")
+    print(f"  RandomForest - {args.metric} (Val): {rf_val_metric:.4f} | (Test): {rf_test_metric:.4f}")
+    print(f"  GBT          - {args.metric} (Val): {gbt_val_metric:.4f} | (Test): {gbt_test_metric:.4f}")
     
-    if gbt_test_metric >= rf_test_metric:
+    # Seleccionar por VALIDATION, no por TEST (para evitar overfitting al test set)
+    if gbt_val_metric >= rf_val_metric:
         best_name = "GBT"
         best_pipeline = gbt_best_pipeline
         best_val_metric = gbt_val_metric
+        best_val_metrics = gbt_val_metrics
         best_test_metric = gbt_test_metric
         best_test_metrics = gbt_test_metrics
         best_params = gbt_best_params
@@ -310,12 +340,13 @@ def main():
         best_name = "RandomForest"
         best_pipeline = rf_best_pipeline
         best_val_metric = rf_val_metric
+        best_val_metrics = rf_val_metrics
         best_test_metric = rf_test_metric
         best_test_metrics = rf_test_metrics
         best_params = rf_best_params
         best_test_pred = rf_test_pred
     
-    print(f"\n  🏆 GANADOR: {best_name}")
+    print(f"\n  🏆 GANADOR (según validation): {best_name}")
     
     # -------------------------
     # RE-ENTRENAMIENTO CON TODO EL TRAIN SET
@@ -401,24 +432,27 @@ def main():
         "test_frac": args.test_frac,
         "seed": args.seed,
         "train_samples": train_df.count(),
+        "val_samples": val_df.count(),
         "test_samples": test_df.count(),
         "n_features": len(feature_cols),
         "class_weights": class_weights,
         "models": {
             "RandomForest": {
-                "val_metric": rf_val_metric,
+                "internal_val_metric": rf_internal_val_metric,
+                "val_metrics": {k.replace("val_", ""): v for k, v in rf_val_metrics.items()},
                 "test_metrics": {k.replace("test_", ""): v for k, v in rf_test_metrics.items()},
                 "best_params": {k: str(v) for k, v in rf_best_params.items()}
             },
             "GBT": {
-                "val_metric": gbt_val_metric,
+                "internal_val_metric": gbt_internal_val_metric,
+                "val_metrics": {k.replace("val_", ""): v for k, v in gbt_val_metrics.items()},
                 "test_metrics": {k.replace("test_", ""): v for k, v in gbt_test_metrics.items()},
                 "best_params": {k: str(v) for k, v in gbt_best_params.items()}
             }
         },
         "winner": {
             "name": best_name,
-            "val_metric": best_val_metric,
+            "val_metrics": {k.replace("val_", ""): v for k, v in best_val_metrics.items()},
             "test_metrics_initial": {k.replace("test_", ""): v for k, v in best_test_metrics.items()},
             "test_metrics_retrained": {k.replace("test_", ""): v for k, v in final_test_metrics.items()},
             "best_params": {k: str(v) for k, v in best_params.items()}

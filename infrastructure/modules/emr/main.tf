@@ -38,13 +38,13 @@ variable "release_label" {
 variable "master_instance_type" {
   type        = string
   description = "Master instance type"
-  default     = "m5.xlarge"
+  default     = "m5.large"
 }
 
 variable "core_instance_type" {
   type        = string
   description = "Core instance type"
-  default     = "m5.2xlarge"
+  default     = "m5.large"
 }
 
 variable "core_instance_count" {
@@ -158,6 +158,34 @@ resource "aws_iam_role_policy_attachment" "emr_ec2_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role"
 }
 
+# IAM Role for Auto Scaling
+resource "aws_iam_role" "emr_autoscaling_role" {
+  name = "${var.project_name}-emr-autoscaling-role-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = ["elasticmapreduce.amazonaws.com", "application-autoscaling.amazonaws.com"]
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.project_name}-emr-autoscaling-role"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "emr_autoscaling_policy" {
+  role       = aws_iam_role.emr_autoscaling_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforAutoScalingRole"
+}
+
 resource "aws_iam_role_policy_attachment" "emr_s3_attach" {
   role       = aws_iam_role.emr_ec2_role.name
   policy_arn = aws_iam_policy.emr_s3_access.arn
@@ -256,6 +284,9 @@ resource "aws_emr_cluster" "spark_cluster" {
   release_label = var.release_label
   applications  = ["Spark", "Hadoop"]
 
+  service_role     = aws_iam_role.emr_service_role.arn
+  autoscaling_role = aws_iam_role.emr_autoscaling_role.arn
+
   ec2_attributes {
     key_name                          = var.key_name
     subnet_id                         = var.subnet_id != "" ? var.subnet_id : null
@@ -313,8 +344,7 @@ resource "aws_emr_cluster" "spark_cluster" {
     }
   ])
 
-  log_uri      = "s3://${var.bucket_name}/logs/emr/"
-  service_role = aws_iam_role.emr_service_role.arn
+  log_uri = "s3://${var.bucket_name}/logs/emr/"
 
   keep_job_flow_alive_when_no_steps = !var.auto_terminate
 

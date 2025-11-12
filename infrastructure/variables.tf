@@ -44,6 +44,36 @@ variable "key_pair_name" {
   description = "SSH key pair name for EC2 and EMR access"
 }
 
+# EMR Configuration
+variable "emr_key_name" {
+  type        = string
+  default     = null
+  description = "SSH key name for EMR cluster access (optional)"
+}
+
+variable "emr_master_instance_type" {
+  type        = string
+  default     = "m5.large"  # 2 vCPUs, 8GB RAM
+  description = "Instance type for EMR master node"
+}
+
+variable "emr_core_instance_type" {
+  type        = string
+  default     = "m5.large"  # 2 vCPUs, 8GB RAM - reducido por límites de vCPUs
+  description = "Instance type for EMR core nodes"
+}
+
+variable "emr_core_instance_count" {
+  type        = number
+  default     = 2
+  description = "Number of EMR core nodes"
+  
+  validation {
+    condition     = var.emr_core_instance_count >= 1 && var.emr_core_instance_count <= 10
+    error_message = "EMR core instance count must be between 1 and 10."
+  }
+}
+
 # EC2 Configuration (for scripts 01-05)
 variable "ec2_instance_type" {
   type        = string
@@ -74,24 +104,6 @@ variable "emr_release_label" {
   type        = string
   default     = "emr-7.0.0"
   description = "EMR release label (includes Spark 3.5.0)"
-}
-
-variable "emr_master_instance_type" {
-  type        = string
-  default     = "m5.xlarge"
-  description = "EMR master instance type"
-}
-
-variable "emr_core_instance_type" {
-  type        = string
-  default     = "m5.2xlarge"
-  description = "EMR core instance type"
-}
-
-variable "emr_core_instance_count" {
-  type        = number
-  default     = 2
-  description = "Number of EMR core instances"
 }
 
 variable "emr_auto_terminate" {

@@ -332,10 +332,10 @@ def main():
 Ejemplo de uso en EMR:
   spark-submit \\
     --deploy-mode cluster \\
-    s3://bucket/scripts/07_evaluar_modelos.py \\
-    --model s3://bucket/06_models/best_model/ \\
-    --test_data s3://bucket/05_training_data/training_data.parquet \\
-    --output s3://bucket/07_evaluation/ \\
+    s3://mineria-project/source/scripts/07_evaluar_modelos.py \\
+    --model s3://mineria-project/models/best_model/ \\
+    --test_data s3://mineria-project/data/all/training_data_all_zones.parquet \\
+    --output s3://mineria-project/results/ \\
     --test_fraction 0.15
         """
     )

@@ -35,3 +35,8 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Scripts de entrenamiento rapido
+scripts\06_entrenar_rapido.py
+scripts\submit_emr_steps.py
+scripts\submit_training_emr.py

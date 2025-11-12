@@ -86,11 +86,6 @@ output "ec2_ssh_command" {
   value       = "ssh -i ${var.key_pair_name}.pem ubuntu@${module.ec2_processing.instance_public_ip}"
 }
 
-output "emr_cluster_id" {
-  description = "EMR Cluster ID (if created)"
-  value       = module.emr_cluster.cluster_id
-}
-
 output "emr_master_public_dns" {
   description = "EMR Master Public DNS (if created)"
   value       = module.emr_cluster.master_public_dns

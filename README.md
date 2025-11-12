@@ -1,34 +1,70 @@
-# 🌳 Proyecto Minería de Datos - Pipeline de Clasificación Forestal
+# 🌳 Proyecto Minería de Datos - Detección de Deforestación con ML
 
-Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de cobertura forestal usando **AWS EC2** y **EMR Spark**.
+Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de cobertura forestal usando Machine Learning.
+
+[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://python.org)
+[![Scikit-learn](https://img.shields.io/badge/Scikit--learn-1.3-orange.svg)](https://scikit-learn.org)
+[![AWS](https://img.shields.io/badge/AWS-S3-yellow.svg)](https://aws.amazon.com/s3)
+[![Status](https://img.shields.io/badge/Status-Production-green.svg)]()
 
 ---
 
-## 🎯 Arquitectura del Pipeline
+## 🎯 Resultados Principales
+
+### ✅ Modelo Entrenado Exitosamente
+
+**Random Forest Classifier** - Detección de Deforestación
+
+| Métrica | Valor | Descripción |
+|---------|-------|-------------|
+| **Accuracy** | **90.35%** | Tasa de acierto general |
+| **Precision** | 72.89% | De cada 100 predicciones de "bosque", 73 son correctas |
+| **Recall** | **91.58%** | Detecta 9 de cada 10 áreas boscosas |
+| **F1-Score** | 81.17% | Balance entre precision y recall |
+| **ROC AUC** | **96.16%** | Excelente capacidad de discriminación |
+| **PR AUC** | **85.42%** | Muy bueno para clases desbalanceadas |
+
+📊 **[Ver Reporte Completo](docs/RESULTADOS_ENTRENAMIENTO.md)**
+
+### 📁 Dataset
+
+- **Total**: 8,008 muestras de 5 zonas
+- **Distribución**: 77.3% no-bosque, 22.7% bosque
+- **Split**: 70% train / 15% val / 15% test
+- **Features**: 15 características (bandas espectrales + índices de vegetación)
+
+### 🔝 Features Más Importantes
+
+1. **B03_med** (Verde) - 18.90%
+2. **NDVI_range** (Variabilidad) - 11.67%
+3. **B11_med** (SWIR) - 9.99%
+
+---
+
+## �️ Arquitectura del Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     PIPELINE MINERÍA                            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  📦 EC2 Instance (Procesamiento de Datos)                       │
+│  📦 Procesamiento de Datos (Scripts 01-05)                      │
 │  ├─ 01_procesar_sentinel_clip.py → Procesar y recortar SAFE    │
 │  ├─ 02_generar_mascaras.py       → Máscaras de calidad         │
 │  ├─ 03_tabular_features.py       → Features tabulares          │
 │  ├─ 04_rasterizar_labels.py      → Rasterizar labels           │
 │  └─ 05_unir_features_labels.py   → Dataset de entrenamiento    │
 │                                                                  │
-│  ⚡ EMR Cluster (Machine Learning con Spark)                    │
-│  ├─ 06_entrenar_modelos_spark.py → Random Forest + GBT         │
-│  └─ 07_evaluar_modelos.py        → Métricas y evaluación       │
+│  🤖 Machine Learning (Script 06)                                │
+│  └─ 06_entrenar_rapido.py        → Random Forest Training      │
 │                                                                  │
 │  💾 S3 Bucket (Almacenamiento)                                  │
 │  └─ s3://mineria-project/                                       │
-│     ├─ raw/raw_copernicus/       → Datos Sentinel-2 originales │
-│     ├─ raw/shapes/                → Shapefiles de zonas        │
+│     ├─ raw/                      → Datos originales             │
 │     ├─ staging/                  → Datos procesados             │
-│     ├─ logs/                     → Logs de corrupción           │
-│     └─ source/scripts/           → Scripts para EC2/EMR         │
+│     ├─ data/all/                 → Dataset de entrenamiento     │
+│     ├─ models/                   → Modelos entrenados          │
+│     └─ results/                  → Métricas y reportes          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -36,121 +72,127 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 
 ## 📊 Estado Actual del Proyecto
 
-### ✅ Completado
+### ✅ Pipeline Completo Ejecutado
 
 **Script 01 - Procesamiento Sentinel-2:**
 - ✅ Procesamiento de imágenes SAFE con bandas de 20m (B02-B07, B8A, B11, B12)
 - ✅ Recorte automático con shapefiles por zona
-- ✅ Corrección automática de CRS corrupto (detección por tile code)
-- ✅ Sistema de logging de archivos corruptos (JSON a S3)
-- ✅ Procesamiento paralelo de 15 zonas (8 workers)
-- ✅ **Resultado:** 15 zonas procesadas exitosamente en 18 minutos
+- ✅ Corrección automática de CRS corrupto
+- ✅ **5 zonas procesadas exitosamente**
 
-**Infraestructura:**
-- ✅ Terraform modular (EC2 + EMR)
-- ✅ Roles IAM configurados
-- ✅ S3 buckets con lifecycle policies
-- ✅ Security groups
-- ✅ User data scripts para EC2
+**Scripts 02-05 - Preparación de Datos:**
+- ✅ Generación de máscaras de calidad
+- ✅ Extracción de features tabulares (bandas + NDVI)
+- ✅ Rasterización de labels
+- ✅ Unión de features con labels
+- ✅ **Dataset final: 8,008 muestras**
 
-### 🔄 Pendiente
+**Script 06 - Entrenamiento:**
+- ✅ Random Forest con grid search
+- ✅ Validación con split 70/15/15
+- ✅ Selección de mejor modelo basado en PR AUC
+- ✅ **Modelo en producción con 90.35% accuracy**
 
-**Scripts 02-05:**
-- ⏳ Generación de máscaras
-- ⏳ Extracción de features tabulares
-- ⏳ Rasterización de labels
-- ⏳ Unión de features con labels
-
-**Scripts 06-07:**
-- ⏳ Entrenamiento de modelos con Spark
-- ⏳ Evaluación de modelos
+**Resultados Guardados en S3:**
+- ✅ `s3://mineria-project/models/random_forest_model.pkl` (1.9 MB)
+- ✅ `s3://mineria-project/results/training_summary.json`
+- ✅ `s3://mineria-project/results/feature_importance.csv`
+- ✅ `s3://mineria-project/results/RESULTADOS_ENTRENAMIENTO.md`
 
 ---
 
 ## 🚀 Uso
 
-### 1. Desplegar Infraestructura
+### 1. Clonar el Repositorio
 
 ```bash
-cd infrastructure
-
-# Inicializar Terraform
-terraform init
-
-# Revisar y aplicar plan
-terraform plan -out=tfplan
-terraform apply tfplan
+git clone https://github.com/maraosoc/mineria_project.git
+cd mineria_project
 ```
 
-La infraestructura incluye:
-- **EC2 c5.4xlarge** (16 vCPUs, 32GB RAM) para scripts 01-05
-- **Security Groups** configurados
-- **IAM Roles** con acceso a S3 y SSM
-- **S3 Buckets** con políticas de lifecycle
-
-### 2. Conectarse a EC2
+### 2. Instalar Dependencias
 
 ```bash
-# Obtener Instance ID de los outputs de Terraform
-aws ssm start-session --target <INSTANCE_ID>
-
-# Cambiar a usuario ubuntu
-sudo su - ubuntu
+pip install -r requirements.txt
 ```
 
-### 3. Ejecutar Script 01 (Procesamiento Sentinel-2)
+### 3. Ejecutar Pipeline Completo
 
-**Procesamiento paralelo de todas las zonas:**
+#### Opción A: Usando el Modelo Pre-entrenado
 
 ```bash
-cd /home/ubuntu/mineria_project/scripts
+# Descargar el modelo desde S3
+aws s3 cp s3://mineria-project/models/random_forest_model.pkl ./models/
 
-# Descargar scripts desde S3 si no están presentes
-python3 << 'EOF'
-import boto3, os
-s3 = boto3.client('s3')
-scripts = ['01_procesar_sentinel_clip.py', 'process_all_zones_parallel.py']
-for script in scripts:
-    s3.download_file('mineria-project', f'source/scripts/{script}', script)
-    os.chmod(script, 0o755)
-EOF
-
-# Ejecutar procesamiento paralelo
-nohup python3 process_all_zones_parallel.py --workers 8 > ../logs/processing_$(date +%Y%m%d_%H%M%S).log 2>&1 &
-
-# Monitorear en tiempo real
-tail -f ../logs/processing_*.log
+# Aplicar predicciones a nuevas zonas (Script 07)
+python scripts/07_evaluar_modelos.py \
+  --model_path ./models/random_forest_model.pkl \
+  --input_data s3://mineria-project/data/new_zone/features.parquet \
+  --output s3://mineria-project/results/new_zone/
 ```
 
-**Procesamiento de una zona individual:**
+#### Opción B: Entrenar un Nuevo Modelo
 
 ```bash
-python3 01_procesar_sentinel_clip.py \
-  --input s3://mineria-project/raw/raw_copernicus/42_VillaLuzA_Unguía_Chocó/ \
+# 1. Procesar imágenes Sentinel-2
+python scripts/01_procesar_sentinel_clip.py \
+  --input s3://mineria-project/raw/raw_copernicus/<ZONE>/ \
   --output s3://mineria-project/staging/01_rasters_procesados_clipped/ \
-  --zone_name "42_VillaLuzA_Unguía_Chocó" \
-  --shape_path "s3://mineria-project/raw/shapes/42_VillaLuzA_Unguía_Chocó/Perímetro" \
+  --zone_name "<ZONE_NAME>" \
+  --shape_path "s3://mineria-project/raw/shapes/<ZONE>/Perímetro" \
   --clip
+
+# 2. Generar máscaras de calidad
+python scripts/02_generar_mascaras.py \
+  --input s3://mineria-project/staging/01_rasters_procesados_clipped/<ZONE>/ \
+  --output s3://mineria-project/staging/02_mascaras/<ZONE>/
+
+# 3. Extraer features tabulares
+python scripts/03_tabular_features.py \
+  --rasters s3://mineria-project/staging/01_rasters_procesados_clipped/<ZONE>/ \
+  --output s3://mineria-project/staging/03_features/<ZONE>/
+
+# 4. Rasterizar labels
+python scripts/04_rasterizar_labels.py \
+  --shapes s3://mineria-project/raw/shapes/<ZONE>/labels/ \
+  --reference s3://mineria-project/staging/01_rasters_procesados_clipped/<ZONE>/ \
+  --output s3://mineria-project/staging/04_labels/<ZONE>/
+
+# 5. Unir features con labels
+python scripts/05_unir_features_labels.py \
+  --features s3://mineria-project/staging/03_features/<ZONE>/ \
+  --labels s3://mineria-project/staging/04_labels/<ZONE>/ \
+  --output s3://mineria-project/data/<ZONE>/training_data.parquet
+
+# 6. Entrenar modelo
+python scripts/06_entrenar_rapido.py \
+  --input s3://mineria-project/data/<ZONE>/training_data.parquet \
+  --output ./models/new_model/
 ```
 
 ### 4. Verificar Resultados
 
 ```bash
-# Contar archivos procesados
-aws s3 ls s3://mineria-project/staging/01_rasters_procesados_clipped/ --recursive | wc -l
+# Ver métricas del modelo
+cat models/training_summary.json
 
-# Ver logs de corrupción
-aws s3 ls s3://mineria-project/logs/01_procesar_sentinel/
+# Ver features más importantes
+cat models/feature_importance.csv
 
-# Descargar un log específico
-aws s3 cp s3://mineria-project/logs/01_procesar_sentinel/corrupt_files_<ZONE>.json .
+# Listar archivos en S3
+aws s3 ls s3://mineria-project/results/ --recursive
+aws s3 ls s3://mineria-project/models/ --recursive
 ```
 
-### 5. Destruir Infraestructura
+### 5. Descargar Resultados
 
 ```bash
-cd infrastructure
-terraform destroy -auto-approve
+# Descargar todos los resultados
+aws s3 sync s3://mineria-project/results/ ./local_results/
+aws s3 sync s3://mineria-project/models/ ./local_models/
+
+# Ver reporte completo
+cat local_results/RESULTADOS_ENTRENAMIENTO.md
 ```
 
 ---
@@ -163,23 +205,27 @@ mineria_project/
 │   ├── aws_config.yaml
 │   └── pipeline_config.yaml
 ├── docs/                            # Documentación
-│   └── AWS_SETUP.md
+│   ├── AWS_SETUP.md
+│   ├── EMR_TRAINING.md
+│   ├── QUICK_REFERENCE.md
+│   ├── TRAINING_IMPROVEMENTS.md
+│   └── RESULTADOS_ENTRENAMIENTO.md  # ⭐ Reporte completo
 ├── infrastructure/                  # Infraestructura como código
-│   ├── backend.tf                   # Backend de Terraform
-│   ├── main.tf                      # Configuración principal
-│   ├── s3.tf                        # Buckets S3
-│   ├── variables.tf                 # Variables
-│   ├── terraform.tfvars             # Valores de variables
-│   └── modules/                     # Módulos Terraform
+│   ├── backend.tf
+│   ├── main.tf
+│   ├── s3.tf
+│   ├── variables.tf
+│   ├── terraform.tfvars
+│   └── modules/
 │       ├── ec2/                     # Módulo EC2
 │       └── emr/                     # Módulo EMR
 ├── scripts/                         # Scripts de procesamiento
 │   ├── 01_procesar_sentinel_clip.py # Procesamiento Sentinel-2 ✅
-│   ├── 02_generar_mascaras.py       # Máscaras de calidad
-│   ├── 03_tabular_features.py       # Features tabulares
-│   ├── 04_rasterizar_labels.py      # Rasterización de labels
-│   ├── 05_unir_features_labels.py   # Unión de datos
-│   ├── 06_entrenar_modelos_spark.py # Entrenamiento con Spark
+│   ├── 02_generar_mascaras.py       # Máscaras de calidad ✅
+│   ├── 03_tabular_features.py       # Features tabulares ✅
+│   ├── 04_rasterizar_labels.py      # Rasterización de labels ✅
+│   ├── 05_unir_features_labels.py   # Unión de datos ✅
+│   ├── 06_entrenar_rapido.py        # Entrenamiento rápido ✅
 │   ├── 07_evaluar_modelos.py        # Evaluación de modelos
 │   ├── process_all_zones_parallel.py # Orquestador paralelo ✅
 │   ├── submit_emr_steps.py          # Submitter de EMR
