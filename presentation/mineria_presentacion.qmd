@@ -1,6 +1,6 @@
 ---
-title: "Clasificación Bosque/No-Bosque"
-subtitle: "Proyecto de Minería de Datos con Sentinel-2 y AWS"
+title: "ClasificaciÃ³n Bosque/No-Bosque"
+subtitle: "Proyecto de MinerÃ­a de Datos con Sentinel-2 y AWS"
 author: "Equipo del proyecto"
 date: "2025-11-12"
 format:
@@ -10,7 +10,7 @@ format:
     toc: false
     incremental: true
     code-copy: true
-    footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel-2"
+    footer: "Proyecto MinerÃ­a de Datos Â· AWS EC2/EMR Â· Sentinel-2"
     embed-resources: true
     smaller: true
     mermaid:
@@ -26,55 +26,57 @@ execute:
 lang: es
 ---
 
-## Introducción
+## IntroducciÃ³n
 
-La deforestación en Colombia responde principalmente a la expansión de la frontera agrícola (tanto por usos legales como ilegales del suelo) y a actividades intensivas de aprovechamiento forestal con fines comerciales y domésticos [1]. Dado el carácter altamente diverso del país, las regiones presentan condiciones biofísicas y dinámicas socioambientales diferenciadas; por ello, el estudio de la deforestación a escala subnacional o subregional es clave para producir diagnósticos más precisos y acciones de manejo focalizadas.
+La deforestaciÃ³n en Colombia responde principalmente a la expansiÃ³n de la frontera agrÃ­cola (tanto por usos legales como ilegales del suelo) y a actividades intensivas de aprovechamiento forestal con fines comerciales y domÃ©sticos [1]. Dado el carÃ¡cter altamente diverso del paÃ­s, las regiones presentan condiciones biofÃ­sicas y dinÃ¡micas socioambientales diferenciadas; por ello, el estudio de la deforestaciÃ³n a escala subnacional o subregional es clave para producir diagnÃ³sticos mÃ¡s precisos y acciones de manejo focalizadas.
 
-En este contexto, las imágenes satelitales, combinadas con sistemas de información geográfica, se han consolidado como insumos fundamentales para el mapeo y la analítica espacial en ciencia e industria. En ecología forestal, los métodos de aprendizaje de máquina permiten abordar tareas como la identificación de coberturas, la modelación de distribución de especies, la estimación de ciclos de carbono, la gestión del riesgo y el pronóstico. Un insumo crítico para múltiples aplicaciones es la delimitación confiable de áreas forestales en una región dada, información que puede derivarse de sensores como Sentinel‑2 mediante flujos de datos reproducibles y escalables.
+
+---
+
+## IntroducciÃ³n (herramientas)
+
+En este contexto, las imÃ¡genes satelitales, combinadas con sistemas de informaciÃ³n geogrÃ¡fica, se han consolidado como insumos fundamentales para el mapeo y la analÃ­tica espacial en ciencia e industria. En ecologÃ­a forestal, los mÃ©todos de aprendizaje de mÃ¡quina permiten abordar tareas como la identificaciÃ³n de coberturas, la modelaciÃ³n de distribuciÃ³n de especies, la estimaciÃ³n de ciclos de carbono, la gestiÃ³n del riesgo y el pronÃ³stico. Un insumo crÃ­tico para mÃºltiples aplicaciones es la delimitaciÃ³n confiable de Ã¡reas forestales en una regiÃ³n dada, informaciÃ³n que puede derivarse de sensores como Sentinelâ€‘2 mediante flujos de datos reproducibles y escalables.
 
 ---
 
 ## Pregunta y Objetivo general
 
-### Pregunta de investigación
+### Pregunta de investigaciÃ³n
 
-¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel-2 diferenciar Bosque de No-Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
+Â¿QuÃ© tan bien puede un modelo de ML basado en variables espectrales de Sentinel-2 diferenciar Bosque de No-Bosque en el Ã¡rea de estudio, bajo un flujo reproducible de datos en AWS?
 
 ### Objetivo general
 
-Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosque usando Sentinel-2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
+Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosque usando Sentinel-2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluaciÃ³n con mÃ©tricas por clase.
 
 ---
 
 ## Objetivos específicos
 
-- Diseñar el flujo de preprocesamiento y control de calidad (nubes, sombras, nieve).
-- Generar etiquetas raster (1=bosque, 0=no-bosque, -1=ignorar) a partir de shapes confiables.
-- Tabular features espectrales y temporales y construir el dataset de entrenamiento.
-- Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el de mejor desempeño.
-- Evaluar con métricas por clase (precisión, recall, F1), matriz de confusión y reporte.
-- Orquestar la ejecución en AWS y versionar artefactos en S3 para reproducibilidad.
+- Implementar un pipeline de ingesta eficiente de datos satelitales multiespectrales en zonas rurales.
+- Generar un conjunto de grandes volúmenes de datos limpios de artefactos con características relevantes.
+- Diseñar modelos de aprendizaje automático capaces de detectar bosque / no-bosque.
+- Optimizar el entrenamiento y validación de los modelos para grandes volúmenes de datos.
+
+---
+## Datos y caracterÃ­sticas
+
+- Sentinel-2: bandas B01-B12; Ã­ndices: NDVI, NDWI.
+- ReproyecciÃ³n objetivo: EPSG:4326; resoluciÃ³n tÃ­pica: 20 m.
+- ComposiciÃ³n temporal (p.ej., median, p10, p90, rango) por banda/Ã­ndice.
 
 ---
 
-## Datos y características
-
-- Sentinel-2: bandas B01-B12; índices: NDVI, NDWI.
-- Reproyección objetivo: EPSG:4326; resolución típica: 20 m.
-- Composición temporal (p.ej., median, p10, p90, rango) por banda/índice.
-
----
-
-## Metodología (visión general)
+## MetodologÃ­a (visiÃ³n general)
 
 0) Ingesta de datos (shapes + historial Sentinel-2)  
-1) Preprocesamiento imágenes (Sentinel-2)  
-2) Máscaras Clear-Sky (nubes, sombras, nieve)  
-3) Tabulación de features válidas  
-4) Rasterización de etiquetas (bosque/no-bosque)  
-5) Unión features + labels (dataset)  
+1) Preprocesamiento imÃ¡genes (Sentinel-2)  
+2) MÃ¡scaras Clear-Sky (nubes, sombras, nieve)  
+3) TabulaciÃ³n de features vÃ¡lidas  
+4) RasterizaciÃ³n de etiquetas (bosque/no-bosque)  
+5) UniÃ³n features + labels (dataset)  
 6) Entrenamiento modelos en Spark (EMR)  
-7) Evaluación y reporte de métricas
+7) EvaluaciÃ³n y reporte de mÃ©tricas
 
 ---
 
@@ -83,94 +85,121 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosqu
 Dos componentes principales:
 
 1) Subida de shapes a S3  
-   - Carga de los shapefiles del área/fin cas objetivo y/o listado de imágenes objetivo.  
-   - Organización en el bucket para referencia por los scripts posteriores.  
+   - Carga de los shapefiles del Ã¡rea/fin cas objetivo y/o listado de imÃ¡genes objetivo.  
+   - OrganizaciÃ³n en el bucket para referencia por los scripts posteriores.  
    - Ejemplo de estructura:  
      - `s3://<bucket>/shapes/`  
      - `s3://<bucket>/lists/imagenes_objetivo.csv`
 
 2) Descarga de datos Sentinel-2  
-   - A partir de la definición anterior, búsqueda de las imágenes objetivo y descarga de su histórico.  
+   - A partir de la definiciÃ³n anterior, bÃºsqueda de las imÃ¡genes objetivo y descarga de su histÃ³rico.  
    - Se almacenan los productos originales en formato `.SAFE` en S3.  
    - Ruta sugerida: `s3://<bucket>/raw/raw_copernicus/<finca>/.../*.SAFE/`
 
 Notas:
-- Esta etapa prepara el “raw zone” del data lake en S3 para el preprocesamiento (01-05).  
-- El etiquetado y entrenamiento dependen de que esta ingesta esté completa y consistente.
+- Esta etapa prepara el â€œraw zoneâ€ del data lake en S3 para el preprocesamiento (01-05).  
+- El etiquetado y entrenamiento dependen de que esta ingesta estÃ© completa y consistente.
 
 ---
 
-## Preparación de datos (DATA_PREP.md)
+## PreparaciÃ³n de datos (DATA_PREP.md)
 
 - Dataset final consolidado: `s3://mineria-project/data/all/training_data_all_zones.parquet` (8,008 muestras; 15 features).
 
-Paso 1 · Procesar Sentinel-2 (clip)
+Paso 1 Â· Procesar Sentinel-2 (clip)
 - Script: `01_procesar_sentinel_clip.py`
-- Entrada: `raw/raw_copernicus/ZONA/*.SAFE`, perímetros `raw/shapes/ZONA/Perímetro.shp`
+- Entrada: `raw/raw_copernicus/ZONA/*.SAFE`, perÃ­metros `raw/shapes/ZONA/PerÃ­metro.shp`
 - Salida: `staging/01_rasters_procesados_clipped/ZONA/` (GeoTIFF multibanda, 10 bandas, 10 m, EPSG:4326)
 
-Paso 2 · Tabular features espectrales
+Paso 2 Â· Tabular features espectrales
 - Script: `03_tabular_features.py`
-- Extracción pixel a pixel, composición temporal (mediana, p25, p75), `n_obs`
+- ExtracciÃ³n pixel a pixel, composiciÃ³n temporal (mediana, p25, p75), `n_obs`
 - Salida: `composite_annual.parquet`, `observations_all.parquet` (Polars/Parquet)
 
-Paso 3 · Rasterizar etiquetas (labels)
+Paso 3 Â· Rasterizar etiquetas (labels)
 - Script: `04_rasterizar_labels.py`
-- Erosión morfológica de bordes; clases: 1=bosque, 0=no-bosque, -1=ignorar
+- ErosiÃ³n morfolÃ³gica de bordes; clases: 1=bosque, 0=no-bosque, -1=ignorar
 - Salida: `forest_labels.tif`
 
-Paso 4 · Unir features + labels
+Paso 4 Â· Unir features + labels
 - Script: `05_unir_features_labels.py`
 - Une medianas/percentiles + label por (x,y); filtra `label=-1`
 - Salida: `training_data.parquet` (18 columnas: 15 features + metadata)
 
-Paso 5 · Consolidación multi-zona
+Paso 5 Â· ConsolidaciÃ³n multi-zona
 - Script: `process_all_zones_pipeline.py`
-- Descubre zonas, valida insumos, concatena, añade `zone`, genera reporte
+- Descubre zonas, valida insumos, concatena, aÃ±ade `zone`, genera reporte
 - Salida: `training_data_all_zones.parquet` + `pipeline_report_*.json`
 
 Resumen del dataset (ejemplo reciente)
-- Total: 8,008 píxeles; Bosque=22.7%, No-Bosque=77.3% (ratio ≈ 3.4:1)
-- Zonas procesadas: 5 de 6; duración total ~65s
+- Total: 8,008 pÃ­xeles; Bosque=22.7%, No-Bosque=77.3% (ratio â‰ˆ 3.4:1)
+- Zonas procesadas: 5 de 6; duraciÃ³n total ~65s
 
 ---
 
-## Metodología (diagrama de flujo)
+## DATA_PREP â€” Resumen
 
-<div style="display:flex; align-items:center; justify-content:center; height:80vh; width:100%; margin-top:3vh;">
-<div style="display:flex; align-items:center; justify-content:center; gap:36px; flex-wrap:nowrap; width:100%;">
-<img src="C:/Users/jmox0/Documents/AWS1.jpg" alt="AWS paso 1" style="max-height:28vh; height:auto; width:auto; object-fit:contain;" />
-<span style="font-size:56px; line-height:1;">&rarr;</span>
-<img src="C:/Users/jmox0/Documents/AWS2.jpg" alt="AWS paso 2" style="max-height:28vh; height:auto; width:auto; object-fit:contain;" />
-<span style="font-size:56px; line-height:1;">&rarr;</span>
-<img src="C:/Users/jmox0/Documents/AWS3.jpg" alt="AWS paso 3" style="max-height:28vh; height:auto; width:auto; object-fit:contain;" />
-</div>
+- Objetivo: preparar datos Sentinel-2 para detecciÃ³n de deforestaciÃ³n con ML.  
+- Cobertura: 6 zonas (5 procesadas correctamente, 1 con error por cobertura/CRS).  
+- Salida final consolidada: `s3://mineria-project/data/all/training_data_all_zones.parquet`.
+- Pasos del pipeline:
+  - Paso 1: `01_procesar_sentinel_clip.py` â†’ rasters multibanda (10 m, EPSG:4326, clipping + mÃ¡scara SCL).
+  - Paso 2: `03_tabular_features.py` â†’ extracciÃ³n pixel a pixel y composiciÃ³n temporal (mediana, p25, p75, n_obs).
+  - Paso 3: `04_rasterizar_labels.py` â†’ labels 1/0/-1 con erosiÃ³n morfolÃ³gica en bordes de bosque.
+  - Paso 4: `05_unir_features_labels.py` â†’ une features + label por (x,y); filtra `label=-1`.
+  - Paso 5: `process_all_zones_pipeline.py` â†’ consolida por zonas y genera reporte.
+
+---
+
+## DATA_PREP â€” EstadÃ­sticas
+
+- Archivo: `s3://mineria-project/data/all/training_data_all_zones.parquet`
+- Total de muestras: 8,008 pÃ­xeles  
+- Clase Bosque (1): 1,820 (22.7%)  
+- Clase No-Bosque (0): 6,188 (77.3%)  
+- Ratio global: 3.40:1  
+- Features: 15 espectrales (medianas + percentiles)  
+- Zonas procesadas: 5 de 6  
+- DuraciÃ³n total: 64.7 s  
+- Fecha de generaciÃ³n: 2025-11-12 16:36:53
+
+Notas por zonas (resumen):
+- Zona 29 (principal) y Zona 32: mejor balance de clases.  
+- Zona 79: extremadamente desbalanceada (casi sin bosque) â†’ considerar excluir.  
+- Zona 42: sin pÃ­xeles vÃ¡lidos â†’ requiere reprocesamiento o descarte.
+
+---
+
+## MetodologÃ­a (diagrama de flujo)
+
+<div style="display:flex; align-items:center; justify-content:center; height:80vh; width:100%; margin-top:2vh;">
+  <img src="C:/Users/jmox0/Documents/mermaid.png" alt="Diagrama de flujo de la metodologÃ­a" style="max-height:80vh; max-width:100%; height:auto; width:auto; object-fit:contain;" />
 </div>
 
 ---
 
-## Metodología (scripts del repositorio)
+## MetodologÃ­a (scripts del repositorio)
 
-- `scripts/01_procesar_sentinel.py`: procesa bandas e índices; reproyección al CRS objetivo.
-- `scripts/02_generar_mascaras.py`: máscaras de cielo despejado; heurísticas NDVI/NIR; dilatación.
-- `scripts/03_tabular_features.py`: extrae píxeles válidos y compone estadísticas temporales.
-- `scripts/04_rasterizar_labels.py`: rasteriza bosque desde shapes; aplica erosión morfológica.
+- `scripts/01_procesar_sentinel.py`: procesa bandas e Ã­ndices; reproyecciÃ³n al CRS objetivo.
+- `scripts/02_generar_mascaras.py`: mÃ¡scaras de cielo despejado; heurÃ­sticas NDVI/NIR; dilataciÃ³n.
+- `scripts/03_tabular_features.py`: extrae pÃ­xeles vÃ¡lidos y compone estadÃ­sticas temporales.
+- `scripts/04_rasterizar_labels.py`: rasteriza bosque desde shapes; aplica erosiÃ³n morfolÃ³gica.
 - `scripts/05_unir_features_labels.py`: construye dataset (features + labels, coords x,y).
 - `scripts/06_entrenar_modelos_spark.py`: entrena RandomForest/GBT en EMR Spark.
-- `scripts/07_evaluar_modelos.py`: calcula y reporta métricas de clasificación.
+- `scripts/07_evaluar_modelos.py`: calcula y reporta mÃ©tricas de clasificaciÃ³n.
 
 ---
 
-## Infraestructura y orquestación
+## Infraestructura y orquestaciÃ³n
 
-- EC2 para preprocesamiento (scripts 01–05).  
-- EMR para entrenamiento/evaluación (scripts 06–07).  
+- EC2 para preprocesamiento (scripts 01â€“05).  
+- EMR para entrenamiento/evaluaciÃ³n (scripts 06â€“07).  
 - S3 para entrada/salida: raw, procesados, features, labels, modelos, resultados.  
-- Parámetros en `config/*.yaml` y guías en `EXECUTION_GUIDE.md`.
+- ParÃ¡metros en `config/*.yaml` y guÃ­as en `EXECUTION_GUIDE.md`.
 
 ---
 
-## Ejecución (resumen)
+## EjecuciÃ³n (resumen)
 
 En EC2 (preprocesamiento):
 
@@ -189,42 +218,43 @@ python scripts/orchestration/run_emr_pipeline.py \
 
 ---
 
-## Resultados: métricas objetivo
+## Resultados: mÃ©tricas objetivo
 
 - Exactitud (accuracy) global.  
-- Precision y Recall por clase (0=No‑Bosque, 1=Bosque).  
+- Precision y Recall por clase (0=Noâ€‘Bosque, 1=Bosque).  
 - F1 por clase y macro/micro promedio.  
-- Matriz de confusión y reporte interpretativo.
+- Matriz de confusiÃ³n y reporte interpretativo.
 
-Criterios de éxito sugeridos:
+Criterios de Ã©xito sugeridos:
 
-- Recall clase Bosque (1) ≥ 0.85  
-- F1 clase Bosque (1) ≥ 0.85  
-- Balance razonable precisión/recall (sin sesgo fuerte por clase)
+- Recall clase Bosque (1) â‰¥ 0.85  
+- F1 clase Bosque (1) â‰¥ 0.85  
+- Balance razonable precisiÃ³n/recall (sin sesgo fuerte por clase)
 
 ---
 
-## Resultados (interpretación)
+## Resultados (interpretaciÃ³n)
 
-- Si el recall de Bosque es bajo → aumentar `class_weight`, ajustar umbral o erosión.  
-- Si hay muchos falsos positivos → revisar umbrales y features temporales.  
+- Si el recall de Bosque es bajo â†’ aumentar `class_weight`, ajustar umbral o erosiÃ³n.  
+- Si hay muchos falsos positivos â†’ revisar umbrales y features temporales.  
 - Usar el reporte de `scripts/07_evaluar_modelos.py` para recomendaciones.
 
-> Nota: Inserta aquí las métricas reales una vez ejecutado el pipeline y exportado el reporte de evaluación.
+
 
 ---
 
 ## Conclusiones
 
 - El pipeline soporta un flujo reproducible y escalable en AWS.  
-- La evaluación por clase asegura que el objetivo (bosque/no‑bosque) sea verificable.  
-- Próximos pasos: pruebas con datos reales, ajuste fino y validación espacial.
+- La evaluaciÃ³n por clase asegura que el objetivo (bosque/noâ€‘bosque) sea verificable.  
+- PrÃ³ximos pasos: pruebas con datos reales, ajuste fino y validaciÃ³n espacial.
 
 ---
 
-## Referencias y guías
+## Referencias y guÃ­as
 
-- [1] Estudios sobre causas de deforestación en Colombia (síntesis; indicar fuente y año exacto en la versión final).  
+- [1] Estudios sobre causas de deforestaciÃ³n en Colombia (sÃ­ntesis; indicar fuente y aÃ±o exacto en la versiÃ³n final).  
 - `README.md`, `EXECUTION_GUIDE.md`, `RESUMEN_EJECUTIVO.md`  
-- Configuración: `config/*.yaml`  
-- Orquestación: `scripts/orchestration/*`
+- ConfiguraciÃ³n: `config/*.yaml`  
+- OrquestaciÃ³n: `scripts/orchestration/*`
+

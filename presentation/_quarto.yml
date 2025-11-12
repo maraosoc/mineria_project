@@ -1,0 +1,19 @@
+project:
+  title: "Presentación Minería de Datos"
+  render:
+    - mineria_presentacion.qmd
+
+format:
+  revealjs:
+    slide-number: true
+    toc: false
+    theme: default
+    embed-resources: true
+    incremental: true
+    code-copy: true
+
+execute:
+  echo: false
+  warning: false
+
+lang: es
