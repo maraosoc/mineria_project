@@ -58,6 +58,7 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bos
 
 ## Metodología (visión general)
 
+0) Ingesta de datos (shapes + historial Sentinel‑2)  
 1) Preprocesamiento imágenes (Sentinel‑2)  
 2) Máscaras Clear‑Sky (nubes, sombras, nieve)  
 3) Tabulación de features válidas  
@@ -65,6 +66,28 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bos
 5) Unión features + labels (dataset)  
 6) Entrenamiento modelos en Spark (EMR)  
 7) Evaluación y reporte de métricas
+
+---
+
+## Ingesta de datos (workflow.pdf p. 3)
+
+Dos componentes principales:
+
+1) Subida de shapes a S3  
+   - Carga de los shapefiles del área/fin cas objetivo y/o listado de imágenes objetivo.  
+   - Organización en el bucket para referencia por los scripts posteriores.  
+   - Ejemplo de estructura:  
+     - `s3://<bucket>/shapes/`  
+     - `s3://<bucket>/lists/imagenes_objetivo.csv`
+
+2) Descarga de datos Sentinel‑2  
+   - A partir de la definición anterior, búsqueda de las imágenes objetivo y descarga de su histórico.  
+   - Se almacenan los productos originales en formato `.SAFE` en S3.  
+   - Ruta sugerida: `s3://<bucket>/raw/raw_copernicus/<finca>/.../*.SAFE/`
+
+Notas:
+- Esta etapa prepara el “raw zone” del data lake en S3 para el preprocesamiento (01‑05).  
+- El etiquetado y entrenamiento dependen de que esta ingesta esté completa y consistente.
 
 ---
 
@@ -146,4 +169,3 @@ Criterios de éxito sugeridos:
 - `README.md`, `EXECUTION_GUIDE.md`, `RESUMEN_EJECUTIVO.md`  
 - Configuración: `config/*.yaml`  
 - Orquestación: `scripts/orchestration/*`
-
