@@ -13,6 +13,7 @@ format:
     footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel-2"
     embed-resources: true
     smaller: true
+    mermaid: true
 execute:
   echo: false
   warning: false
@@ -21,25 +22,27 @@ lang: es
 
 ## Introducción
 
-- Clasificar cobertura Bosque/No-Bosque con imágenes Sentinel-2.
-- Pipeline reproducible y escalable en AWS (EC2, EMR, S3).
-- Resultados interpretables y verificables con métricas por clase.
+Multiple studies over the years, summarized by [1], have found and agree that in Colombia, the leading causes of deforestation on a national level are the expansion of the agricultural frontier (both for legal and illegal usage of the land) and the intensive logging activities for both commercial and domestic purposes. The studies also conclude that, since Colombia is a highly diverse country, the country’s regions all possess different biophysical characteristics and are affected by distinctive phenomena. Consequently, it is worth studying the dynamics of deforestation on a subnational or subregional level to obtain more accurate and focused results [1].
+
+Las imágenes satelitales son ampliamente usadas junto a sistemas de información geográfica para el mapeo geográfico y la analítica en diversos sectores de la ciencia y la industria. En particular, existen métodos de machine learning implementados en campos como la ecología forestal y existen diversas aplicaciones en áreas como la distribución de especies, ciclos de carbono, gestión de riesgo y pronóstico. Uno de los insumos de gran utilidad es la distribución de áreas forestales en cierta región y esta información puede ser extraída a partir de imágenes satelitales.
 
 ---
 
-## Pregunta de investigación
+## Pregunta y Objetivos
+
+::: columns
+::: column
+### Pregunta de investigación
 
 ¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel-2 diferenciar Bosque de No-Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
 
----
-
-## Objetivo general
+::: 
+::: column
+### Objetivo general
 
 Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosque usando Sentinel-2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
 
----
-
-## Objetivos específicos
+### Objetivos específicos
 
 - Diseñar el flujo de preprocesamiento y calidad (nubes, sombras, nieve).
 - Generar etiquetas raster (1=bosque, 0=no-bosque, -1=ignorar) a partir de shapes.
@@ -47,6 +50,8 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosqu
 - Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el mejor.
 - Evaluar con métricas por clase (precisión, recall, F1) y reporte interpretativo.
 - Orquestar ejecución en AWS y versionar artefactos en S3.
+:::
+:::
 
 ---
 
@@ -90,6 +95,97 @@ Dos componentes principales:
 Notas:
 - Esta etapa prepara el “raw zone” del data lake en S3 para el preprocesamiento (01-05).  
 - El etiquetado y entrenamiento dependen de que esta ingesta esté completa y consistente.
+
+---
+
+## Metodología (diagrama de flujo)
+
+```{mermaid}
+%%{init: {'flowchart': {'curve':'basis','rankSpacing':90,'nodeSpacing':60}} }%%
+flowchart LR
+
+%% ======== SECCIONES PRINCIPALES ========
+subgraph LOCAL["💻 Entorno Local"]
+    L1["1️⃣ Subida de shapes a S3
+    - Carga shapefiles y/o listas de imágenes objetivo
+    - Organización en:
+      s3://<bucket>/shapes/
+      s3://<bucket>/lists/imagenes_objetivo.csv"]
+    
+    L2["2️⃣ Descarga de datos Sentinel-2
+    - Búsqueda y descarga histórica de imágenes
+    - Almacenamiento .SAFE en:
+      s3://<bucket>/raw/raw_copernicus/<finca>/*.SAFE/"]
+
+    L1 --> L2
+end
+
+%% Puerta de entrada a AWS
+ENTRY_AWS["🚪 Ingreso a AWS"]
+
+L2 -->|Carga datos raw a S3| ENTRY_AWS
+
+%% ======== AWS INFRAESTRUCTURA ========
+subgraph AWS["☁️ AWS Infraestructura"]
+direction LR
+
+  %% EC2 Preprocesamiento
+  subgraph EC2["🖥️ EC2 - Preprocesamiento"]
+    A3["3️⃣ 01_procesar_sentinel.py
+    - Procesa bandas e índices
+    - Reproyección al CRS objetivo"]
+
+    A4["4️⃣ 02_generar_mascaras.py
+    - Máscaras cielo despejado
+    - NDVI/NIR y dilatación"]
+
+    A5["5️⃣ 03_tabular_features.py
+    - Extrae píxeles válidos
+    - Estadísticas temporales"]
+
+    A6["6️⃣ 04_rasterizar_labels.py
+    - Rasteriza bosque desde shapes
+    - Erosión morfológica"]
+
+    A7["7️⃣ 05_unir_features_labels.py
+    - Dataset con features y labels"]
+
+    A3 --> A4 --> A5 --> A6 --> A7
+  end
+
+  %% EMR Entrenamiento
+  subgraph EMR["🔥 EMR - Entrenamiento y Evaluación"]
+    A8["8️⃣ 06_entrenar_modelos_spark.py
+    - Entrena RandomForest o GBT en Spark (EMR)"]
+
+    A9["9️⃣ 07_evaluar_modelos.py
+    - Calcula métricas y genera reporte"]
+
+    A8 --> A9
+  end
+end
+
+%% Puerta de salida a S3
+EXIT_AWS["🚪 Salida hacia S3"]
+
+ENTRY_AWS --> A3
+A7 -->|Dataset final a S3: features y labels| A8
+A9 --> EXIT_AWS
+EXIT_AWS -->|Modelos y métricas| S3
+
+%% ======== S3 HUB ========
+S3["🗄️ Amazon S3
+Zonas: raw, procesados, features, labels, modelos, resultados"]
+
+%% ======== ESTILOS ========
+style LOCAL fill:#d6eaff,stroke:#007bff,stroke-width:2px
+style AWS fill:#fff3cd,stroke:#ffb400,stroke-width:2px
+style EC2 fill:#e8ffe8,stroke:#2ca02c,stroke-width:1.5px
+style EMR fill:#ffe8e8,stroke:#ff0000,stroke-width:1.5px
+style S3 fill:#f0f0f0,stroke:#666,stroke-width:1.5px
+style ENTRY_AWS fill:#ffffff,stroke:#999,stroke-dasharray:3 3
+style EXIT_AWS fill:#ffffff,stroke:#999,stroke-dasharray:3 3
+```
 
 ---
 
@@ -168,6 +264,7 @@ Criterios de éxito sugeridos:
 
 ## Referencias y guías
 
+- [1] Estudios sobre causas de deforestación en Colombia (síntesis; indicar fuente y año exacto en la versión final).  
 - `README.md`, `EXECUTION_GUIDE.md`, `RESUMEN_EJECUTIVO.md`  
 - Configuración: `config/*.yaml`  
 - Orquestación: `scripts/orchestration/*`
