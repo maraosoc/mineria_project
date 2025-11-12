@@ -23,36 +23,32 @@ lang: es
 
 ## Introducción
 
-Multiple studies over the years, summarized by [1], have found and agree that in Colombia, the leading causes of deforestation on a national level are the expansion of the agricultural frontier (both for legal and illegal usage of the land) and the intensive logging activities for both commercial and domestic purposes. The studies also conclude that, since Colombia is a highly diverse country, the country’s regions all possess different biophysical characteristics and are affected by distinctive phenomena. Consequently, it is worth studying the dynamics of deforestation on a subnational or subregional level to obtain more accurate and focused results [1].
+La deforestación en Colombia responde principalmente a la expansión de la frontera agrícola (tanto por usos legales como ilegales del suelo) y a actividades intensivas de aprovechamiento forestal con fines comerciales y domésticos [1]. Dado el carácter altamente diverso del país, las regiones presentan condiciones biofísicas y dinámicas socioambientales diferenciadas; por ello, el estudio de la deforestación a escala subnacional o subregional es clave para producir diagnósticos más precisos y acciones de manejo focalizadas.
 
-Las imágenes satelitales son ampliamente usadas junto a sistemas de información geográfica para el mapeo geográfico y la analítica en diversos sectores de la ciencia y la industria. En particular, existen métodos de machine learning implementados en campos como la ecología forestal y existen diversas aplicaciones en áreas como la distribución de especies, ciclos de carbono, gestión de riesgo y pronóstico. Uno de los insumos de gran utilidad es la distribución de áreas forestales en cierta región y esta información puede ser extraída a partir de imágenes satelitales.
+En este contexto, las imágenes satelitales, combinadas con sistemas de información geográfica, se han consolidado como insumos fundamentales para el mapeo y la analítica espacial en ciencia e industria. En ecología forestal, los métodos de aprendizaje de máquina permiten abordar tareas como la identificación de coberturas, la modelación de distribución de especies, la estimación de ciclos de carbono, la gestión del riesgo y el pronóstico. Un insumo crítico para múltiples aplicaciones es la delimitación confiable de áreas forestales en una región dada, información que puede derivarse de sensores como Sentinel‑2 mediante flujos de datos reproducibles y escalables.
 
 ---
 
-## Pregunta y Objetivos
+## Pregunta y Objetivo general
 
-::: columns
-::: column
 ### Pregunta de investigación
 
 ¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel-2 diferenciar Bosque de No-Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
 
-::: 
-::: column
 ### Objetivo general
 
 Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosque usando Sentinel-2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
 
-### Objetivos específicos
+---
 
-- Diseñar el flujo de preprocesamiento y calidad (nubes, sombras, nieve).
-- Generar etiquetas raster (1=bosque, 0=no-bosque, -1=ignorar) a partir de shapes.
-- Tabular features espectrales/temporales y construir dataset de entrenamiento.
-- Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el mejor.
-- Evaluar con métricas por clase (precisión, recall, F1) y reporte interpretativo.
-- Orquestar ejecución en AWS y versionar artefactos en S3.
-:::
-:::
+## Objetivos específicos
+
+- Diseñar el flujo de preprocesamiento y control de calidad (nubes, sombras, nieve).
+- Generar etiquetas raster (1=bosque, 0=no-bosque, -1=ignorar) a partir de shapes confiables.
+- Tabular features espectrales y temporales y construir el dataset de entrenamiento.
+- Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el de mejor desempeño.
+- Evaluar con métricas por clase (precisión, recall, F1), matriz de confusión y reporte.
+- Orquestar la ejecución en AWS y versionar artefactos en S3 para reproducibilidad.
 
 ---
 
@@ -101,8 +97,14 @@ Notas:
 
 ## Metodología (diagrama de flujo)
 
+<!-- Aumentar tamaño del diagrama en Reveal.js -->
+<style>
+.reveal .slides .mermaid svg { width: 100% !important; height: 78vh !important; }
+.reveal .slides .mermaid { margin: 0 auto; }
+</style>
+
 ```{mermaid}
-%%{init: {'flowchart': {'curve':'basis','rankSpacing':90,'nodeSpacing':60}} }%%
+%%{init: {'flowchart': {'curve':'basis','rankSpacing':90,'nodeSpacing':60}, 'themeVariables': {'fontSize': '18px'}} }%%
 flowchart LR
 
 %% ======== SECCIONES PRINCIPALES ========
