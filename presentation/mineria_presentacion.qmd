@@ -1,0 +1,149 @@
+---
+title: "Clasificación Bosque/No‑Bosque"
+subtitle: "Proyecto de Minería de Datos con Sentinel‑2 y AWS"
+author: "Equipo del proyecto"
+date: "2025-11-12"
+format:
+  revealjs:
+    theme: [default]
+    slide-number: true
+    toc: false
+    incremental: true
+    code-copy: true
+    footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel‑2"
+execute:
+  echo: false
+  warning: false
+lang: es
+---
+
+## Introducción
+
+- Clasificar cobertura Bosque/No‑Bosque con imágenes Sentinel‑2.
+- Pipeline reproducible y escalable en AWS (EC2, EMR, S3).
+- Resultados interpretables y verificables con métricas por clase.
+
+---
+
+## Pregunta de investigación
+
+¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel‑2 diferenciar Bosque de No‑Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
+
+---
+
+## Objetivo general
+
+Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bosque usando Sentinel‑2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
+
+---
+
+## Objetivos específicos
+
+- Diseñar el flujo de preprocesamiento y calidad (nubes, sombras, nieve).
+- Generar etiquetas raster (1=bosque, 0=no‑bosque, −1=ignorar) a partir de shapes.
+- Tabular features espectrales/temporales y construir dataset de entrenamiento.
+- Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el mejor.
+- Evaluar con métricas por clase (precisión, recall, F1) y reporte interpretativo.
+- Orquestar ejecución en AWS y versionar artefactos en S3.
+
+---
+
+## Datos y características
+
+- Sentinel‑2: bandas B01–B12; índices: NDVI, NDWI.
+- Reproyección objetivo: EPSG:4326; resolución típica: 20 m.
+- Composición temporal (p.ej., median, p10, p90, rango) por banda/índice.
+
+---
+
+## Metodología (visión general)
+
+1) Preprocesamiento imágenes (Sentinel‑2)  
+2) Máscaras Clear‑Sky (nubes, sombras, nieve)  
+3) Tabulación de features válidas  
+4) Rasterización de etiquetas (bosque/no‑bosque)  
+5) Unión features + labels (dataset)  
+6) Entrenamiento modelos en Spark (EMR)  
+7) Evaluación y reporte de métricas
+
+---
+
+## Metodología (scripts del repositorio)
+
+- `scripts/01_procesar_sentinel.py`: procesa bandas e índices; reproyección al CRS objetivo.
+- `scripts/02_generar_mascaras.py`: máscaras de cielo despejado; heurísticas NDVI/NIR; dilatación.
+- `scripts/03_tabular_features.py`: extrae píxeles válidos y compone estadísticas temporales.
+- `scripts/04_rasterizar_labels.py`: rasteriza bosque desde shapes; aplica erosión morfológica.
+- `scripts/05_unir_features_labels.py`: construye dataset (features + labels, coords x,y).
+- `scripts/06_entrenar_modelos_spark.py`: entrena RandomForest/GBT en EMR Spark.
+- `scripts/07_evaluar_modelos.py`: calcula y reporta métricas de clasificación.
+
+---
+
+## Infraestructura y orquestación
+
+- EC2 para preprocesamiento (scripts 01–05).  
+- EMR para entrenamiento/evaluación (scripts 06–07).  
+- S3 para entrada/salida: raw, procesados, features, labels, modelos, resultados.  
+- Parámetros en `config/*.yaml` y guías en `EXECUTION_GUIDE.md`.
+
+---
+
+## Ejecución (resumen)
+
+En EC2 (preprocesamiento):
+
+```bash
+python scripts/orchestration/run_ec2_pipeline.py --mode sequential
+# o bien: --script 01_procesar_sentinel (etc.)
+```
+
+En local para lanzar EMR (ML):
+
+```bash
+python scripts/orchestration/run_emr_pipeline.py \
+  --script 06_entrenar_modelos_spark \
+  --create-cluster --auto-terminate
+```
+
+---
+
+## Resultados: métricas objetivo
+
+- Exactitud (accuracy) global.  
+- Precision y Recall por clase (0=No‑Bosque, 1=Bosque).  
+- F1 por clase y macro/micro promedio.  
+- Matriz de confusión y reporte interpretativo.
+
+Criterios de éxito sugeridos:
+
+- Recall clase Bosque (1) ≥ 0.85  
+- F1 clase Bosque (1) ≥ 0.85  
+- Balance razonable precisión/recall (sin sesgo fuerte por clase)
+
+---
+
+## Resultados (interpretación)
+
+- Si el recall de Bosque es bajo → aumentar `class_weight`, ajustar umbral o erosión.  
+- Si hay muchos falsos positivos → revisar umbrales y features temporales.  
+- Usar el reporte de `scripts/07_evaluar_modelos.py` para recomendaciones.
+
+> Nota: Inserta aquí las métricas reales una vez ejecutado el pipeline y exportado el reporte de evaluación.
+
+---
+
+## Conclusiones
+
+- El pipeline soporta un flujo reproducible y escalable en AWS.  
+- La evaluación por clase asegura que el objetivo (bosque/no‑bosque) sea verificable.  
+- Próximos pasos: pruebas con datos reales, ajuste fino y validación espacial.
+
+---
+
+## Referencias y guías
+
+- `README.md`, `EXECUTION_GUIDE.md`, `RESUMEN_EJECUTIVO.md`  
+- Configuración: `config/*.yaml`  
+- Orquestación: `scripts/orchestration/*`
+
