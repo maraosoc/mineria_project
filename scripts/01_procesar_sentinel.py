@@ -35,14 +35,15 @@ from botocore.exceptions import ClientError
 
 def parse_args():
     p = argparse.ArgumentParser(description="Procesa Sentinel-2 SAFE files en AWS")
-    p.add_argument("--input", required=True, help="S3 path pattern de SAFE files")
+    p.add_argument("--input", required=True, help="S3 path a carpeta de zona (ej: s3://bucket/raw/42_VillaLuz/)")
     p.add_argument("--output", required=True, help="S3 output directory")
-    p.add_argument("--bands", default="B01,B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12", 
-                   help="Bandas a procesar (separadas por coma)")
+    p.add_argument("--zone_name", required=True, help="Nombre de la zona (ej: 42_VillaLuzA_Unguía_Chocó)")
+    p.add_argument("--bands", default="B02,B03,B04,B05,B06,B07,B8A,B11,B12", 
+                   help="Bandas a procesar (separadas por coma) - Solo 20m")
     p.add_argument("--resolution", type=int, default=20, help="Resolución objetivo (m)")
     p.add_argument("--indices", default="NDVI,NDWI", help="Índices a calcular")
     p.add_argument("--target_crs", default="EPSG:4326", help="CRS objetivo")
-    p.add_argument("--temp_dir", default="/tmp/sentinel_processing", help="Directorio temporal")
+    p.add_argument("--temp_dir", default="C:/temp/sentinel_processing", help="Directorio temporal")
     return p.parse_args()
 
 
@@ -60,19 +61,27 @@ class S3Handler:
         key = parts[1] if len(parts) > 1 else ""
         return bucket, key
     
-    def list_safe_files(self, s3_pattern: str) -> List[str]:
-        """Lista archivos SAFE en S3"""
-        bucket, prefix = self.parse_s3_path(s3_pattern.replace("*.SAFE", ""))
+    def list_safe_files(self, s3_zone_path: str) -> List[str]:
+        """Lista archivos SAFE en una carpeta de zona específica en S3"""
+        bucket, prefix = self.parse_s3_path(s3_zone_path)
         
-        response = self.s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+        # Asegurar que el prefix termina con /
+        if not prefix.endswith('/'):
+            prefix += '/'
+        
+        print(f"  Buscando en: s3://{bucket}/{prefix}")
+        
+        paginator = self.s3_client.get_paginator('list_objects_v2')
+        page_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
         
         safe_dirs = set()
-        if 'Contents' in response:
-            for obj in response['Contents']:
-                key = obj['Key']
-                if '.SAFE/' in key:
-                    safe_dir = key.split('.SAFE/')[0] + '.SAFE'
-                    safe_dirs.add(f"s3://{bucket}/{safe_dir}")
+        for page in page_iterator:
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    key = obj['Key']
+                    if '.SAFE/' in key:
+                        safe_dir = key.split('.SAFE/')[0] + '.SAFE'
+                        safe_dirs.add(f"s3://{bucket}/{safe_dir}")
         
         return sorted(safe_dirs)
     
@@ -109,19 +118,21 @@ def find_band_file(safe_dir: str, band: str, resolution: int) -> str:
     return str(band_files[0])
 
 
-def calculate_ndvi(b08: np.ndarray, b04: np.ndarray) -> np.ndarray:
-    """Calcula NDVI = (NIR - Red) / (NIR + Red)"""
+def calculate_ndvi(b8a: np.ndarray, b04: np.ndarray) -> np.ndarray:
+    """Calcula NDVI = (NIR - Red) / (NIR + Red)
+    Usa B8A (NIR narrow) en lugar de B08 para resolución 20m"""
     with np.errstate(divide='ignore', invalid='ignore'):
-        ndvi = (b08 - b04) / (b08 + b04)
+        ndvi = (b8a - b04) / (b8a + b04)
         ndvi[np.isnan(ndvi)] = 0
         ndvi[np.isinf(ndvi)] = 0
     return ndvi
 
 
-def calculate_ndwi(b03: np.ndarray, b08: np.ndarray) -> np.ndarray:
-    """Calcula NDWI = (Green - NIR) / (Green + NIR)"""
+def calculate_ndwi(b03: np.ndarray, b8a: np.ndarray) -> np.ndarray:
+    """Calcula NDWI = (Green - NIR) / (Green + NIR)
+    Usa B8A (NIR narrow) en lugar de B08 para resolución 20m"""
     with np.errstate(divide='ignore', invalid='ignore'):
-        ndwi = (b03 - b08) / (b03 + b08)
+        ndwi = (b03 - b8a) / (b03 + b8a)
         ndwi[np.isnan(ndwi)] = 0
         ndwi[np.isinf(ndwi)] = 0
     return ndwi
@@ -144,14 +155,11 @@ def process_safe_file(safe_s3_path: str, bands: List[str], resolution: int,
     # Descargar solo las bandas necesarias
     bucket, prefix = s3_handler.parse_s3_path(safe_s3_path)
     
-    print(f"  Descargando bandas desde S3...")
+    print(f"  Descargando bandas desde S3 (resolución {resolution}m)...")
     band_files = {}
     for band in bands:
         try:
-            # Construir path esperado de la banda
-            s3_band_pattern = f"{prefix}/GRANULE/*/IMG_DATA/R{resolution}m/*_{band}_{resolution}m.jp2"
-            
-            # Listar archivos que coincidan
+            # Listar archivos disponibles
             response = s3_handler.s3_client.list_objects_v2(
                 Bucket=bucket,
                 Prefix=f"{prefix}/GRANULE/"
@@ -171,7 +179,7 @@ def process_safe_file(safe_s3_path: str, bands: List[str], resolution: int,
                 band_files[band] = local_band_path
                 print(f"    ✓ {band}")
             else:
-                print(f"    ⚠ {band} no encontrada")
+                print(f"    ⚠ {band} no encontrada a {resolution}m")
         
         except Exception as e:
             print(f"    ✗ Error descargando {band}: {e}")
@@ -230,13 +238,13 @@ def process_safe_file(safe_s3_path: str, bands: List[str], resolution: int,
             print(f"    ✓ {band}")
     
     # Calcular índices
-    if "NDVI" in indices and "B08" in output_bands and "B04" in output_bands:
-        ndvi = calculate_ndvi(output_bands["B08"], output_bands["B04"])
+    if "NDVI" in indices and "B8A" in output_bands and "B04" in output_bands:
+        ndvi = calculate_ndvi(output_bands["B8A"], output_bands["B04"])
         output_bands["NDVI"] = ndvi
         print(f"    ✓ NDVI")
     
-    if "NDWI" in indices and "B03" in output_bands and "B08" in output_bands:
-        ndwi = calculate_ndwi(output_bands["B03"], output_bands["B08"])
+    if "NDWI" in indices and "B03" in output_bands and "B8A" in output_bands:
+        ndwi = calculate_ndwi(output_bands["B03"], output_bands["B8A"])
         output_bands["NDWI"] = ndwi
         print(f"    ✓ NDWI")
     
@@ -284,8 +292,9 @@ def main():
     args = parse_args()
     
     print(f"\n{'='*70}")
-    print("PROCESAMIENTO SENTINEL-2 EN AWS EMR")
+    print("PROCESAMIENTO SENTINEL-2 - SCRIPT 01")
     print(f"{'='*70}")
+    print(f"  Zona:   {args.zone_name}")
     print(f"  Input:  {args.input}")
     print(f"  Output: {args.output}")
     print(f"  Bands:  {args.bands}")
@@ -298,8 +307,8 @@ def main():
     # Inicializar S3
     s3_handler = S3Handler()
     
-    # Listar archivos SAFE
-    print(f"\n  Listando archivos SAFE en S3...")
+    # Listar archivos SAFE en la carpeta de la zona
+    print(f"\n  Listando archivos SAFE en la zona...")
     safe_files = s3_handler.list_safe_files(args.input)
     print(f"  ✓ Encontrados: {len(safe_files)} archivos SAFE")
     
@@ -307,8 +316,16 @@ def main():
         print("  ⚠ No se encontraron archivos SAFE")
         return
     
+    # Mostrar archivos encontrados
+    for safe_path in safe_files:
+        print(f"    - {os.path.basename(safe_path)}")
+    
     # Crear directorio temporal
     os.makedirs(args.temp_dir, exist_ok=True)
+    
+    # Preparar directorio de salida en S3 (incluye nombre de zona)
+    zone_output = f"{args.output.rstrip('/')}/{args.zone_name}"
+    print(f"\n  Output final: {zone_output}")
     
     # Procesar cada SAFE file
     processed_count = 0
@@ -323,7 +340,7 @@ def main():
             
             # Subir a S3
             output_filename = os.path.basename(local_output)
-            s3_output_path = f"{args.output.rstrip('/')}/{output_filename}"
+            s3_output_path = f"{zone_output}/{output_filename}"
             
             print(f"\n  Subiendo a S3: {s3_output_path}")
             s3_handler.upload_file(local_output, s3_output_path)
@@ -335,14 +352,17 @@ def main():
             
         except Exception as e:
             print(f"\n  ✗ Error procesando {os.path.basename(safe_path)}: {e}")
+            import traceback
+            traceback.print_exc()
             failed_count += 1
     
     print(f"\n{'='*70}")
     print("RESUMEN")
     print(f"{'='*70}")
+    print(f"  Zona: {args.zone_name}")
     print(f"  ✓ Procesados exitosamente: {processed_count}")
     print(f"  ✗ Fallidos: {failed_count}")
-    print(f"  Output S3: {args.output}")
+    print(f"  Output S3: {zone_output}")
     print(f"{'='*70}\n")
 
 

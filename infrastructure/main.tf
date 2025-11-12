@@ -1,35 +1,10 @@
 # Main Terraform configuration for Mineria Project
 # =================================================
 # This configuration creates:
-# 1. S3 bucket for data storage
+# 1. Reference to existing S3 bucket
 # 2. EC2 instance for processing scripts 01-05
 # 3. EMR cluster infrastructure (IAM roles, security groups)
 # 4. Optional: EMR cluster for Spark scripts 06-07
-
-terraform {
-  required_version = ">= 1.0"
-  
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-# Provider configuration
-provider "aws" {
-  region  = var.region
-  profile = var.profile
-
-  default_tags {
-    tags = {
-      Project   = var.project_name
-      ManagedBy = "Terraform"
-      Owner     = var.owner
-    }
-  }
-}
 
 # Get default VPC
 data "aws_vpc" "default" {
@@ -44,15 +19,16 @@ data "aws_subnets" "default" {
   }
 }
 
-# S3 Bucket Module
-module "s3" {
-  source = "./s3.tf" # Using existing s3.tf as module
-  
-  # Pass any required variables
-  # Variables will be defined in s3.tf if needed
+# S3 Bucket (ya existe, solo referencia)
+# El bucket mineria-project ya fue creado manualmente
+data "aws_s3_bucket" "project_bucket" {
+  bucket = var.s3_bucket_name
 }
 
-# EC2 Processing Module
+# Local values
+locals {
+  bucket_name = data.aws_s3_bucket.project_bucket.id
+}
 # Runs scripts 01-05
 module "ec2_processing" {
   source = "./modules/ec2"
@@ -87,11 +63,6 @@ module "emr_cluster" {
   vpc_id              = data.aws_vpc.default.id
   subnet_id           = length(data.aws_subnets.default.ids) > 0 ? data.aws_subnets.default.ids[0] : ""
   auto_terminate      = var.emr_auto_terminate
-}
-
-# Local values
-locals {
-  bucket_name = "${var.project_name}-data-${var.environment}"
 }
 
 # Outputs

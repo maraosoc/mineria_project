@@ -14,9 +14,9 @@ exec > >(tee /var/log/user-data.log)
 exec 2>&1
 
 echo "=========================================="
-echo "Initializing EC2 instance for ${PROJECT_NAME}"
-echo "Environment: ${ENVIRONMENT}"
-echo "Bucket: ${BUCKET_NAME}"
+echo "Initializing EC2 instance for $PROJECT_NAME"
+echo "Environment: $ENVIRONMENT"
+echo "Bucket: $BUCKET_NAME"
 echo "=========================================="
 
 # Update system
@@ -79,7 +79,7 @@ pip install -r /tmp/requirements.txt
 
 # Download scripts from S3
 echo "Downloading scripts from S3..."
-aws s3 sync s3://${BUCKET_NAME}/scripts/ /home/ubuntu/mineria_scripts/ || echo "No scripts found in S3 yet"
+aws s3 sync s3://${bucket_name}/scripts/ /home/ubuntu/mineria_scripts/ || echo "No scripts found in S3 yet"
 
 # Make scripts executable
 chmod +x /home/ubuntu/mineria_scripts/*.py 2>/dev/null || true
@@ -87,7 +87,7 @@ chmod +x /home/ubuntu/mineria_scripts/orchestration/*.py 2>/dev/null || true
 
 # Download config files
 echo "Downloading config files..."
-aws s3 sync s3://${BUCKET_NAME}/config/ /home/ubuntu/mineria_scripts/config/ || echo "No config files found in S3 yet"
+aws s3 sync s3://${bucket_name}/config/ /home/ubuntu/mineria_scripts/config/ || echo "No config files found in S3 yet"
 
 # Set permissions
 chown -R ubuntu:ubuntu /home/ubuntu/mineria_*

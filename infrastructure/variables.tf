@@ -100,6 +100,20 @@ variable "emr_auto_terminate" {
   description = "Auto-terminate EMR cluster when idle"
 }
 
+# S3 Configuration
+variable "s3_bucket_name" {
+  type        = string
+  default     = "mineria-project"
+  description = "S3 bucket name for data storage"
+}
+
+# Additional Tags
+variable "tags" {
+  type        = map(string)
+  default     = {}
+  description = "Additional tags to apply to resources"
+}
+
 # Legacy variables (for backwards compatibility if needed)
 variable "instance_type" {
   type        = string
