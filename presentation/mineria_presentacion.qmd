@@ -102,24 +102,8 @@ Notas:
 
 ## Metodología (diagrama de flujo)
 
-<!-- Aumentar tamaño del diagrama en Reveal.js -->
-<style>
-.reveal .slides .mermaid svg { width: 100% !important; height: 90vh !important; }
-.reveal .slides .mermaid { margin: 0 auto; }
-</style>
-
 ```{mermaid}
-%%{init: {
-  'flowchart': {
-    'curve': 'basis',
-    'rankSpacing': 140,
-    'nodeSpacing': 140
-  },
-  'themeVariables': {
-    'fontSize': '22px',
-    'lineHeight': '24px'
-  }
-} }%%
+%%{init: {'flowchart': {'curve':'basis','rankSpacing':90,'nodeSpacing':60}} }%%
 flowchart LR
 
 %% ======== SECCIONES PRINCIPALES ========
