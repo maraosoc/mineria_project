@@ -100,6 +100,41 @@ Notas:
 
 ---
 
+## Preparación de datos (DATA_PREP.md)
+
+- Dataset final consolidado: `s3://mineria-project/data/all/training_data_all_zones.parquet` (8,008 muestras; 15 features).
+
+Paso 1 · Procesar Sentinel-2 (clip)
+- Script: `01_procesar_sentinel_clip.py`
+- Entrada: `raw/raw_copernicus/ZONA/*.SAFE`, perímetros `raw/shapes/ZONA/Perímetro.shp`
+- Salida: `staging/01_rasters_procesados_clipped/ZONA/` (GeoTIFF multibanda, 10 bandas, 10 m, EPSG:4326)
+
+Paso 2 · Tabular features espectrales
+- Script: `03_tabular_features.py`
+- Extracción pixel a pixel, composición temporal (mediana, p25, p75), `n_obs`
+- Salida: `composite_annual.parquet`, `observations_all.parquet` (Polars/Parquet)
+
+Paso 3 · Rasterizar etiquetas (labels)
+- Script: `04_rasterizar_labels.py`
+- Erosión morfológica de bordes; clases: 1=bosque, 0=no-bosque, -1=ignorar
+- Salida: `forest_labels.tif`
+
+Paso 4 · Unir features + labels
+- Script: `05_unir_features_labels.py`
+- Une medianas/percentiles + label por (x,y); filtra `label=-1`
+- Salida: `training_data.parquet` (18 columnas: 15 features + metadata)
+
+Paso 5 · Consolidación multi-zona
+- Script: `process_all_zones_pipeline.py`
+- Descubre zonas, valida insumos, concatena, añade `zone`, genera reporte
+- Salida: `training_data_all_zones.parquet` + `pipeline_report_*.json`
+
+Resumen del dataset (ejemplo reciente)
+- Total: 8,008 píxeles; Bosque=22.7%, No-Bosque=77.3% (ratio ≈ 3.4:1)
+- Zonas procesadas: 5 de 6; duración total ~65s
+
+---
+
 ## Metodología (diagrama de flujo)
 
 <div style="display:flex; align-items:center; justify-content:center; height:80vh; width:100%; margin-top:3vh;">
