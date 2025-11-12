@@ -4,7 +4,7 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 
 ---
 
-## 🎯 Arquitectura Reorganizada
+## 🎯 Arquitectura del Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -12,330 +12,338 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  📦 EC2 Instance (Procesamiento de Datos)                       │
-│  ├─ 01_procesar_sentinel.py     → Procesar SAFE files          │
-│  ├─ 02_generar_mascaras.py      → Máscaras de calidad          │
-│  ├─ 03_tabular_features.py      → Features tabulares           │
-│  ├─ 04_rasterizar_labels.py     → Rasterizar labels            │
-│  └─ 05_unir_features_labels.py  → Dataset de entrenamiento     │
+│  ├─ 01_procesar_sentinel_clip.py → Procesar y recortar SAFE    │
+│  ├─ 02_generar_mascaras.py       → Máscaras de calidad         │
+│  ├─ 03_tabular_features.py       → Features tabulares          │
+│  ├─ 04_rasterizar_labels.py      → Rasterizar labels           │
+│  └─ 05_unir_features_labels.py   → Dataset de entrenamiento    │
 │                                                                  │
 │  ⚡ EMR Cluster (Machine Learning con Spark)                    │
 │  ├─ 06_entrenar_modelos_spark.py → Random Forest + GBT         │
 │  └─ 07_evaluar_modelos.py        → Métricas y evaluación       │
 │                                                                  │
 │  💾 S3 Bucket (Almacenamiento)                                  │
-│  └─ Datos raw, procesados, modelos y resultados                │
+│  └─ s3://mineria-project/                                       │
+│     ├─ raw/raw_copernicus/       → Datos Sentinel-2 originales │
+│     ├─ raw/shapes/                → Shapefiles de zonas        │
+│     ├─ staging/                  → Datos procesados             │
+│     ├─ logs/                     → Logs de corrupción           │
+│     └─ source/scripts/           → Scripts para EC2/EMR         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start
+## 📊 Estado Actual del Proyecto
 
-### 1. Prerrequisitos
+### ✅ Completado
 
-- AWS CLI configurado
-- Terraform >= 1.0
-- Python 3.10+
-- SSH key pair en AWS
+**Script 01 - Procesamiento Sentinel-2:**
+- ✅ Procesamiento de imágenes SAFE con bandas de 20m (B02-B07, B8A, B11, B12)
+- ✅ Recorte automático con shapefiles por zona
+- ✅ Corrección automática de CRS corrupto (detección por tile code)
+- ✅ Sistema de logging de archivos corruptos (JSON a S3)
+- ✅ Procesamiento paralelo de 15 zonas (8 workers)
+- ✅ **Resultado:** 15 zonas procesadas exitosamente en 18 minutos
 
-### 2. Setup Rápido
+**Infraestructura:**
+- ✅ Terraform modular (EC2 + EMR)
+- ✅ Roles IAM configurados
+- ✅ S3 buckets con lifecycle policies
+- ✅ Security groups
+- ✅ User data scripts para EC2
+
+### 🔄 Pendiente
+
+**Scripts 02-05:**
+- ⏳ Generación de máscaras
+- ⏳ Extracción de features tabulares
+- ⏳ Rasterización de labels
+- ⏳ Unión de features con labels
+
+**Scripts 06-07:**
+- ⏳ Entrenamiento de modelos con Spark
+- ⏳ Evaluación de modelos
+
+---
+
+## 🚀 Uso
+
+### 1. Desplegar Infraestructura
 
 ```bash
-# Clonar repositorio
-git clone <repo-url>
-cd mineria_project
+cd infrastructure
 
-# Ejecutar script de setup
-chmod +x setup.sh
-./setup.sh
+# Inicializar Terraform
+terraform init
 
-# El script te guiará a través de:
-# - Configuración de Terraform
-# - Creación de infraestructura
-# - Subida de scripts a S3
+# Revisar y aplicar plan
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 
-### 3. Ejecutar Pipeline
+La infraestructura incluye:
+- **EC2 c5.4xlarge** (16 vCPUs, 32GB RAM) para scripts 01-05
+- **Security Groups** configurados
+- **IAM Roles** con acceso a S3 y SSM
+- **S3 Buckets** con políticas de lifecycle
 
-**En EC2 (Scripts 01-05):**
+### 2. Conectarse a EC2
+
 ```bash
-# Conectar a EC2
-ssh -i key.pem ubuntu@<EC2_IP>
+# Obtener Instance ID de los outputs de Terraform
+aws ssm start-session --target <INSTANCE_ID>
 
-# Ejecutar script individual
-cd /home/ubuntu/mineria_scripts
-python orchestration/run_ec2_pipeline.py --script 01_procesar_sentinel
-
-# O ejecutar pipeline completo
-python orchestration/run_ec2_pipeline.py --mode sequential
+# Cambiar a usuario ubuntu
+sudo su - ubuntu
 ```
 
-**En EMR (Scripts 06-07):**
-```bash
-# Desde tu máquina local
-cd scripts/orchestration/
+### 3. Ejecutar Script 01 (Procesamiento Sentinel-2)
 
-# Entrenar modelos
-python run_emr_pipeline.py \
-    --script 06_entrenar_modelos_spark \
-    --create-cluster \
-    --auto-terminate
+**Procesamiento paralelo de todas las zonas:**
+
+```bash
+cd /home/ubuntu/mineria_project/scripts
+
+# Descargar scripts desde S3 si no están presentes
+python3 << 'EOF'
+import boto3, os
+s3 = boto3.client('s3')
+scripts = ['01_procesar_sentinel_clip.py', 'process_all_zones_parallel.py']
+for script in scripts:
+    s3.download_file('mineria-project', f'source/scripts/{script}', script)
+    os.chmod(script, 0o755)
+EOF
+
+# Ejecutar procesamiento paralelo
+nohup python3 process_all_zones_parallel.py --workers 8 > ../logs/processing_$(date +%Y%m%d_%H%M%S).log 2>&1 &
+
+# Monitorear en tiempo real
+tail -f ../logs/processing_*.log
+```
+
+**Procesamiento de una zona individual:**
+
+```bash
+python3 01_procesar_sentinel_clip.py \
+  --input s3://mineria-project/raw/raw_copernicus/42_VillaLuzA_Unguía_Chocó/ \
+  --output s3://mineria-project/staging/01_rasters_procesados_clipped/ \
+  --zone_name "42_VillaLuzA_Unguía_Chocó" \
+  --shape_path "s3://mineria-project/raw/shapes/42_VillaLuzA_Unguía_Chocó/Perímetro" \
+  --clip
+```
+
+### 4. Verificar Resultados
+
+```bash
+# Contar archivos procesados
+aws s3 ls s3://mineria-project/staging/01_rasters_procesados_clipped/ --recursive | wc -l
+
+# Ver logs de corrupción
+aws s3 ls s3://mineria-project/logs/01_procesar_sentinel/
+
+# Descargar un log específico
+aws s3 cp s3://mineria-project/logs/01_procesar_sentinel/corrupt_files_<ZONE>.json .
+```
+
+### 5. Destruir Infraestructura
+
+```bash
+cd infrastructure
+terraform destroy -auto-approve
 ```
 
 ---
 
-## 📂 Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 mineria_project/
-├── 📄 EXECUTION_GUIDE.md           ⭐ Guía detallada de ejecución
-├── 📄 REORGANIZATION_SUMMARY.md    ⭐ Resumen de cambios
-├── 📄 README.md                     Este archivo
-│
-├── config/
-│   ├── aws_config.yaml              Configuración AWS
-│   ├── pipeline_config.yaml         Parámetros del pipeline
-│   └── execution_config.yaml        ⭐ Config de ejecución incremental
-│
-├── infrastructure/                  ⭐ Terraform modular
-│   ├── main.tf                      Configuración principal
-│   ├── variables.tf                 Variables
-│   ├── s3.tf                        Bucket S3
-│   ├── terraform.tfvars.example     Ejemplo de configuración
-│   │
-│   └── modules/
-│       ├── ec2/                     ⭐ Módulo EC2
-│       │   ├── main.tf
-│       │   └── user_data.sh
-│       └── emr/                     ⭐ Módulo EMR
-│           └── main.tf
-│
-├── scripts/
-│   ├── 01_procesar_sentinel.py      EC2: Procesar Sentinel
-│   ├── 02_generar_mascaras.py       EC2: Máscaras
-│   ├── 03_tabular_features.py       EC2: Features
-│   ├── 04_rasterizar_labels.py      EC2: Labels
-│   ├── 05_unir_features_labels.py   EC2: Join
-│   ├── 06_entrenar_modelos_spark.py EMR: Entrenar
-│   ├── 07_evaluar_modelos.py        EMR: Evaluar
-│   │
-│   ├── orchestration/               ⭐ Scripts de orquestación
-│   │   ├── run_ec2_pipeline.py      ⭐ Orquestador EC2
-│   │   └── run_emr_pipeline.py      ⭐ Orquestador EMR
-│   │
-│   └── bootstrap/
-│       └── install_packages.sh
-│
-├── docs/
+├── config/                          # Configuraciones
+│   ├── aws_config.yaml
+│   └── pipeline_config.yaml
+├── docs/                            # Documentación
 │   └── AWS_SETUP.md
-│
-└── setup.sh                         ⭐ Script de setup automatizado
+├── infrastructure/                  # Infraestructura como código
+│   ├── backend.tf                   # Backend de Terraform
+│   ├── main.tf                      # Configuración principal
+│   ├── s3.tf                        # Buckets S3
+│   ├── variables.tf                 # Variables
+│   ├── terraform.tfvars             # Valores de variables
+│   └── modules/                     # Módulos Terraform
+│       ├── ec2/                     # Módulo EC2
+│       └── emr/                     # Módulo EMR
+├── scripts/                         # Scripts de procesamiento
+│   ├── 01_procesar_sentinel_clip.py # Procesamiento Sentinel-2 ✅
+│   ├── 02_generar_mascaras.py       # Máscaras de calidad
+│   ├── 03_tabular_features.py       # Features tabulares
+│   ├── 04_rasterizar_labels.py      # Rasterización de labels
+│   ├── 05_unir_features_labels.py   # Unión de datos
+│   ├── 06_entrenar_modelos_spark.py # Entrenamiento con Spark
+│   ├── 07_evaluar_modelos.py        # Evaluación de modelos
+│   ├── process_all_zones_parallel.py # Orquestador paralelo ✅
+│   ├── submit_emr_steps.py          # Submitter de EMR
+│   ├── bootstrap/                   # Scripts de bootstrap EMR
+│   └── orchestration/               # Scripts de orquestación
+│       ├── run_ec2_pipeline.py
+│       └── run_emr_pipeline.py
+├── requirements.txt                 # Dependencias Python
+└── README.md                        # Este archivo
 ```
-
----
-
-## ✨ Características Principales
-
-### ✅ Ejecución Incremental
-- Ejecuta scripts **uno a la vez**
-- Verifica resultados antes de continuar
-- Perfecto para testing y debugging
-
-### ✅ Validación Automática
-- Verifica outputs en S3 después de cada paso
-- Logging detallado de todas las operaciones
-- Detección temprana de errores
-
-### ✅ Flexible y Escalable
-- Configura recursos EC2 y EMR según necesidades
-- EMR on-demand (crea cluster solo cuando lo necesites)
-- Spot instances para ahorrar costos
-
-### ✅ Infrastructure as Code
-- Toda la infraestructura en Terraform
-- Módulos reutilizables EC2 y EMR
-- Fácil replicación en diferentes entornos
-
-### ✅ Observabilidad
-- Logs centralizados en S3
-- Monitoreo en tiempo real
-- Dry-run mode para testing
-
----
-
-## 📖 Documentación
-
-| Documento | Descripción |
-|-----------|-------------|
-| **[EXECUTION_GUIDE.md](EXECUTION_GUIDE.md)** | 📘 Guía completa paso a paso |
-| **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)** | ⚙️ Setup de AWS |
-| **[RESUMEN_EJECUTIVO.md](RESUMEN_EJECUTIVO.md)** | 📝 Resumen de cambios y mejoras .MD |
-
-
----
-
-## 🎯 Flujo de Trabajo Típico
-
-### Desarrollo / Testing
-
-```bash
-# 1. Ejecutar script individual en EC2
-ssh ubuntu@<EC2_IP>
-cd /home/ubuntu/mineria_scripts
-python orchestration/run_ec2_pipeline.py --script 01_procesar_sentinel
-
-# 2. Verificar resultados
-aws s3 ls s3://bucket/01_processed/ --recursive
-
-# 3. Si hay problemas, revisar logs
-tail -f /home/ubuntu/mineria_logs/ec2_pipeline_*.log
-
-# 4. Refinar y repetir
-
-# 5. Continuar con siguiente script cuando esté listo
-python orchestration/run_ec2_pipeline.py --script 02_generar_mascaras
-```
-
-### Producción
-
-```bash
-# Pipeline completo EC2
-python orchestration/run_ec2_pipeline.py --mode sequential
-
-# Pipeline EMR
-cd scripts/orchestration/
-python run_emr_pipeline.py --mode sequential --create-cluster --auto-terminate
-```
-
----
-
-## 💰 Estimación de Costos (AWS us-east-1)
-
-| Recurso | Tipo | Costo/hora | Uso típico | Costo estimado |
-|---------|------|------------|------------|----------------|
-| EC2 Processing | t3.xlarge | $0.17 | 4-8 horas | $1-2 |
-| EMR Master | m5.xlarge | $0.19 | 5-10 horas | $1-2 |
-| EMR Workers (2x) | m5.2xlarge | $0.38 c/u | 5-10 horas | $4-8 |
-| S3 Storage | - | $0.023/GB/mes | 100 GB | $2.30/mes |
-| **Total pipeline completo** | - | - | Una ejecución | **$6-12** |
-
-**Tips para ahorrar:**
-- ✅ Detener EC2 cuando no se use
-- ✅ EMR on-demand (no permanente)
-- ✅ Usar Spot instances para workers (-70%)
-- ✅ Lifecycle policies en S3
 
 ---
 
 ## 🔧 Configuración
 
-### Variables de Terraform
-
-Edita `infrastructure/terraform.tfvars`:
+### Variables de Terraform (`terraform.tfvars`)
 
 ```hcl
-# Básico
-region        = "us-east-1"
-project_name  = "mineria"
-environment   = "dev"
-key_pair_name = "your-key"
+# General
+project_name = "mineria"
+environment  = "dev"
+aws_region   = "us-east-1"
 
 # EC2
-ec2_instance_type = "t3.xlarge"
+ec2_instance_type = "c5.4xlarge"  # 16 vCPUs, 32GB RAM
+ec2_volume_size   = 100           # GB
 
-# EMR
-create_emr_cluster = false  # Crear on-demand
-emr_core_instance_count = 2
+# S3
+s3_bucket_name = "mineria-project"
+
+# Networking
+allowed_ssh_cidr = ["0.0.0.0/0"]  # ⚠️ Cambiar en producción
 ```
 
-### Parámetros de Ejecución
+### Zonas Procesadas
 
-Edita `config/execution_config.yaml`:
+Las 15 zonas procesadas actualmente:
 
-```yaml
-# Parámetros por script
-script_params:
-  "01_procesar_sentinel":
-    bands: "B01,B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12"
-    resolution: 20
+1. 14_ElDanubio_Granada_Meta
+2. 21_LaPalmera_Granada_Cundinamarca
+3. 28_Montebello_Barrancabermeja_Santander
+4. 29_Cuiva_SantaRosadeOsos_Antioquia
+5. 32_LosNaranjos_Venecia_Antioquia
+6. 35_Bellavista_Albán_Cundinamarca
+7. 41_Cárpatos_LaUnión_Antioquia
+8. 42_VillaLuzA_Unguía_Chocó
+9. 44_SantaRosa_SanLuisdeGaceno_Boyacá
+10. 54_LaAlameda_Prado_Tolima
+11. 55_ElEdén_SantaRosadeOsos_Antioquia
+12. 59_SanGabriel_Belmira_Antioquia
+13. 69_Guabineros_Zarzal_ValledelCauca
+14. 72_ElPorro_PuebloNuevo_Córdoba
+15. 79_SanJerónimo_Pore_Casanare
 
-# Timeouts
-monitoring:
-  timeouts:
-    "01_procesar_sentinel": 7200
-    "06_entrenar_modelos_spark": 10800
+---
+
+## 🐛 Problemas Conocidos y Soluciones
+
+### 1. CRS Corrupto en Archivos SAFE
+
+**Problema:** 30-50% de archivos Sentinel-2 tienen CRS incorrecto en metadatos.
+
+**Solución Implementada:**
+- Detección automática de tile code (e.g., `T18N`) mediante regex
+- Corrección de CRS basada en el tile code
+- Logging de archivos corruptos a S3
+
+### 2. AWS CLI Roto en Ubuntu 22.04
+
+**Problema:** `KeyError: 'opsworkscm'` en comandos `aws s3`.
+
+**Solución:**
+- Usar `boto3` directamente en Python en lugar de AWS CLI
+- Scripts incluyen workaround automático
+
+### 3. Shapefiles en CTM_12 (EPSG:3116)
+
+**Problema:** Shapefiles de zonas están en proyección diferente a Sentinel-2.
+
+**Solución:**
+- Reproyección automática en script 01
+- Validación de bounds geográficos para Colombia
+
+---
+
+## 📊 Resultados del Script 01
+
+### Resumen de Ejecución
+
+```
+Duración total: 18.0 minutos
+Zonas procesadas: 15/15 (100%)
+Workers paralelos: 8
+Instancia: c5.4xlarge (16 vCPUs, 32GB RAM)
+
+Resultados por zona:
+  ✅ 14_ElDanubio_Granada_Meta: 18.0 min
+  ✅ 21_LaPalmera_Granada_Cundinamarca: 3.1 min
+  ✅ 28_Montebello_Barrancabermeja_Santander: 2.9 min
+  ✅ 29_Cuiva_SantaRosadeOsos_Antioquia: 15.8 min
+  ✅ 32_LosNaranjos_Venecia_Antioquia: 14.5 min
+  ✅ 35_Bellavista_Albán_Cundinamarca: 3.1 min
+  ✅ 41_Cárpatos_LaUnión_Antioquia: 4.8 min
+  ✅ 42_VillaLuzA_Unguía_Chocó: 0.5 min
+  ✅ 44_SantaRosa_SanLuisdeGaceno_Boyacá: 14.7 min
+  ✅ 54_LaAlameda_Prado_Tolima: 11.3 min
+  ✅ 55_ElEdén_SantaRosadeOsos_Antioquia: 10.2 min
+  ✅ 59_SanGabriel_Belmira_Antioquia: 4.1 min
+  ✅ 69_Guabineros_Zarzal_ValledelCauca: 2.0 min
+  ✅ 72_ElPorro_PuebloNuevo_Córdoba: 7.3 min
+  ✅ 79_SanJerónimo_Pore_Casanare: 10.5 min
 ```
 
----
+### Logs de Corrupción
 
-## 🐛 Troubleshooting
-
-### EC2 no responde
-
-```bash
-# Ver estado
-aws ec2 describe-instances --instance-ids <ID>
-
-# Ver logs de inicialización
-ssh ubuntu@<IP>
-tail -f /var/log/user-data.log
-```
-
-### Script falla en EC2
-
-```bash
-# Ver logs
-tail -f /home/ubuntu/mineria_logs/ec2_pipeline_*.log
-
-# Ejecutar con dry-run
-python orchestration/run_ec2_pipeline.py --script 01_procesar_sentinel --dry-run
-```
-
-### EMR job falla
-
-```bash
-# Ver clusters
-aws emr list-clusters --active
-
-# Ver detalles del step
-aws emr describe-step --cluster-id j-XXX --step-id s-YYY
-
-# Descargar logs
-aws s3 sync s3://bucket/logs/emr/<cluster-id>/ ./logs/
-```
+16 archivos JSON generados con detalles de archivos corruptos:
+- Ubicación: `s3://mineria-project/logs/01_procesar_sentinel/`
+- Formato: `corrupt_files_<ZONE>_<TIMESTAMP>.json`
+- Incluye: safe_file, expected_crs, actual_crs, tile_code, error_message
 
 ---
 
-## 🔗 Recursos Útiles
+## 💰 Costos Estimados
 
-- [AWS EMR Documentation](https://docs.aws.amazon.com/emr/)
-- [Spark MLlib Guide](https://spark.apache.org/docs/latest/ml-guide.html)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [Rasterio Documentation](https://rasterio.readthedocs.io/)
+### Script 01 (Procesamiento Sentinel-2)
 
----
+- **Instancia:** c5.4xlarge @ $0.68/hora
+- **Duración:** 18 minutos = 0.3 horas
+- **Costo EC2:** ~$0.20
+- **Costo S3:** Negligible (< $0.01)
+- **Total:** ~$0.21 por ejecución completa
 
-## 🤝 Contribuir
+### Scripts 06-07 (EMR Spark)
 
-1. Fork el repositorio
-2. Crea una rama (`git checkout -b feature/mejora`)
-3. Commit cambios (`git commit -am 'Add mejora'`)
-4. Push a la rama (`git push origin feature/mejora`)
-5. Abre un Pull Request
-
----
-
-## 📝 Licencia
-
-Ver archivo [LICENSE](LICENSE)
+- **Master:** m5.xlarge @ $0.192/hora
+- **Core (2x):** m5.xlarge @ $0.192/hora cada uno
+- **Duración estimada:** 1-2 horas
+- **Costo estimado:** ~$1.15 - $2.30
 
 ---
 
-## 👥 Autores
+## 📝 Próximos Pasos
 
-- Minería Team
-- Contacto: <your-email>
+1. **Script 02:** Generación de máscaras de calidad
+2. **Script 03:** Extracción de features tabulares
+3. **Script 04:** Rasterización de labels
+4. **Script 05:** Unión de features con labels
+5. **Scripts 06-07:** Entrenamiento y evaluación en EMR
+6. **Optimización:** Fine-tuning de modelos
+7. **Deployment:** Pipeline automatizado
 
 ---
 
-**🚀 ¡Listo para procesar datos forestales a escala!**
+## 📄 Licencia
+
+Ver archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 👥 Contribución
+
+Este es un proyecto académico. Para consultas o contribuciones, contactar al equipo del proyecto.
+
+---
+
+**Última actualización:** 12 de Noviembre, 2025  
+**Estado:** Script 01 completado exitosamente ✅

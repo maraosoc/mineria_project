@@ -47,7 +47,7 @@ variable "key_pair_name" {
 # EC2 Configuration (for scripts 01-05)
 variable "ec2_instance_type" {
   type        = string
-  default     = "t3.xlarge"
+  default     = "c5.4xlarge"  # 16 vCPUs, 32GB RAM - optimizado para procesamiento paralelo
   description = "EC2 instance type for processing scripts 01-05"
 }
 
