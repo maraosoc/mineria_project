@@ -13,7 +13,8 @@ format:
     footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel-2"
     embed-resources: true
     smaller: true
-    mermaid: true
+    mermaid:
+      theme: default
 execute:
   echo: false
   warning: false
