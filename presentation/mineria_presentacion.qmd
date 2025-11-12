@@ -1,6 +1,6 @@
 ---
-title: "Clasificación Bosque/No‑Bosque"
-subtitle: "Proyecto de Minería de Datos con Sentinel‑2 y AWS"
+title: "Clasificación Bosque/No-Bosque"
+subtitle: "Proyecto de Minería de Datos con Sentinel-2 y AWS"
 author: "Equipo del proyecto"
 date: "2025-11-12"
 format:
@@ -10,7 +10,9 @@ format:
     toc: false
     incremental: true
     code-copy: true
-    footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel‑2"
+    footer: "Proyecto Minería de Datos · AWS EC2/EMR · Sentinel-2"
+    embed-resources: true
+    smaller: true
 execute:
   echo: false
   warning: false
@@ -19,7 +21,7 @@ lang: es
 
 ## Introducción
 
-- Clasificar cobertura Bosque/No‑Bosque con imágenes Sentinel‑2.
+- Clasificar cobertura Bosque/No-Bosque con imágenes Sentinel-2.
 - Pipeline reproducible y escalable en AWS (EC2, EMR, S3).
 - Resultados interpretables y verificables con métricas por clase.
 
@@ -27,20 +29,20 @@ lang: es
 
 ## Pregunta de investigación
 
-¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel‑2 diferenciar Bosque de No‑Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
+¿Qué tan bien puede un modelo de ML basado en variables espectrales de Sentinel-2 diferenciar Bosque de No-Bosque en el área de estudio, bajo un flujo reproducible de datos en AWS?
 
 ---
 
 ## Objetivo general
 
-Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bosque usando Sentinel‑2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
+Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No-Bosque usando Sentinel-2, con preprocesamiento robusto, etiquetado confiable, entrenamiento en Spark (EMR) y evaluación con métricas por clase.
 
 ---
 
 ## Objetivos específicos
 
 - Diseñar el flujo de preprocesamiento y calidad (nubes, sombras, nieve).
-- Generar etiquetas raster (1=bosque, 0=no‑bosque, −1=ignorar) a partir de shapes.
+- Generar etiquetas raster (1=bosque, 0=no-bosque, -1=ignorar) a partir de shapes.
 - Tabular features espectrales/temporales y construir dataset de entrenamiento.
 - Entrenar modelos en Spark (Random Forest, GBT) y seleccionar el mejor.
 - Evaluar con métricas por clase (precisión, recall, F1) y reporte interpretativo.
@@ -50,7 +52,7 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bos
 
 ## Datos y características
 
-- Sentinel‑2: bandas B01–B12; índices: NDVI, NDWI.
+- Sentinel-2: bandas B01-B12; índices: NDVI, NDWI.
 - Reproyección objetivo: EPSG:4326; resolución típica: 20 m.
 - Composición temporal (p.ej., median, p10, p90, rango) por banda/índice.
 
@@ -58,11 +60,11 @@ Construir y evaluar un pipeline de punta a punta para clasificar Bosque/No‑Bos
 
 ## Metodología (visión general)
 
-0) Ingesta de datos (shapes + historial Sentinel‑2)  
-1) Preprocesamiento imágenes (Sentinel‑2)  
-2) Máscaras Clear‑Sky (nubes, sombras, nieve)  
+0) Ingesta de datos (shapes + historial Sentinel-2)  
+1) Preprocesamiento imágenes (Sentinel-2)  
+2) Máscaras Clear-Sky (nubes, sombras, nieve)  
 3) Tabulación de features válidas  
-4) Rasterización de etiquetas (bosque/no‑bosque)  
+4) Rasterización de etiquetas (bosque/no-bosque)  
 5) Unión features + labels (dataset)  
 6) Entrenamiento modelos en Spark (EMR)  
 7) Evaluación y reporte de métricas
@@ -80,13 +82,13 @@ Dos componentes principales:
      - `s3://<bucket>/shapes/`  
      - `s3://<bucket>/lists/imagenes_objetivo.csv`
 
-2) Descarga de datos Sentinel‑2  
+2) Descarga de datos Sentinel-2  
    - A partir de la definición anterior, búsqueda de las imágenes objetivo y descarga de su histórico.  
    - Se almacenan los productos originales en formato `.SAFE` en S3.  
    - Ruta sugerida: `s3://<bucket>/raw/raw_copernicus/<finca>/.../*.SAFE/`
 
 Notas:
-- Esta etapa prepara el “raw zone” del data lake en S3 para el preprocesamiento (01‑05).  
+- Esta etapa prepara el “raw zone” del data lake en S3 para el preprocesamiento (01-05).  
 - El etiquetado y entrenamiento dependen de que esta ingesta esté completa y consistente.
 
 ---
