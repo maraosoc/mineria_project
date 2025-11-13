@@ -1,25 +1,24 @@
 ---
-title: "ClasificaciÃ³n Bosque/No-Bosque"
-subtitle: "Proyecto de MinerÃ­a de Datos con Sentinel-2 y AWS"
-author: "Equipo del proyecto"
-date: "2025-11-12"
+title: "Detección de Deforestación con Machine Learning"
+subtitle: "Pipeline de Clasificación Bosque/No-Bosque usando Sentinel-2 y AWS"
+author: "Equipo de Minería de Datos"
+date: "12 de noviembre de 2025"
 format:
   revealjs:
-    theme: [default]
+    theme: [default, custom.scss]
     slide-number: true
     toc: false
-    incremental: true
+    incremental: false
     code-copy: true
-    footer: "Proyecto MinerÃ­a de Datos Â· AWS EC2/EMR Â· Sentinel-2"
+    footer: "Proyecto Minería de Datos · AWS · Sentinel-2 · Machine Learning"
     embed-resources: true
-    smaller: true
     mermaid:
-      theme: default
-    width: 1600
-    height: 900
-    maxScale: 2
-    minScale: 0.2
-    margin: 0.04
+      theme: forest
+    width: 1920
+    height: 1080
+    margin: 0.1
+    transition: slide
+    background-transition: fade
 execute:
   echo: false
   warning: false

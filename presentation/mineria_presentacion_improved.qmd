@@ -1,0 +1,779 @@
+﻿---
+title: "Detección de Deforestación con Machine Learning"
+subtitle: "Pipeline de Clasificación Bosque/No-Bosque usando Sentinel-2 y AWS"
+author: "Equipo de Minería de Datos"
+date: "12 de noviembre de 2025"
+format:
+  revealjs:
+    theme: [default]
+    slide-number: true
+    toc: false
+    incremental: false
+    code-copy: true
+    footer: "Proyecto Minería de Datos · AWS · Sentinel-2 · Machine Learning"
+    embed-resources: true
+    mermaid:
+      theme: forest
+    width: 1600
+    height: 900
+    margin: 0.15
+    center: true
+    transition: slide
+    background-transition: fade
+    css: custom.css
+    scrollable: false
+execute:
+  echo: false
+  warning: false
+lang: es
+---
+
+## 🌍 Contexto y Problemática {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.3em; font-weight: 700; margin-bottom: 0.5em;"}
+**La Deforestación en Colombia**
+:::
+
+::: {style="font-size: 1.1em; line-height: 1.5;"}
+- 🌳 La **deforestación** responde principalmente a la **expansión agrícola** (legal e ilegal)
+- 🪓 Actividades intensivas de **aprovechamiento forestal** comercial y doméstico
+- 🗺️ Debido al carácter **altamente diverso** del país, cada región presenta condiciones biofísicas diferentes
+- 🎯 El estudio a **escala subnacional** es clave para diagnósticos precisos y acciones focalizadas
+:::
+
+::: {.notes}
+Colombia enfrenta un desafío significativo de deforestación que varía regionalmente.
+:::
+
+---
+
+## 🛰️ Herramientas Tecnológicas {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.1em; line-height: 1.5;"}
+- 📡 **Imágenes satelitales** + **SIG**: insumos fundamentales para mapeo y análisis espacial
+- 🤖 **Machine Learning**: permite identificación de coberturas, modelación de distribución de especies, estimación de ciclos de carbono
+- 🛰️ **Sentinel-2**: sensor crítico para delimitar áreas forestales de forma reproducible y escalable
+- ☁️ **AWS (S3, EC2, EMR)**: infraestructura cloud para procesamiento distribuido y almacenamiento
+:::
+
+::: {.fragment}
+::: {.callout-tip icon=true style="font-size: 1em;"}
+## Ventaja Competitiva
+Pipeline **completamente reproducible**, **escalable** y **basado en datos abiertos**
+:::
+:::
+
+---
+
+## 🎯 Pregunta de Investigación {background-color="#234A23"}
+
+::: {style="font-size: 1.5em; font-weight: 700; margin-bottom: 0.5em;"}
+¿Qué tan bien puede un modelo de ML clasificar Bosque vs No-Bosque?
+:::
+
+::: {style="font-size: 1.2em; margin-top: 1em;"}
+Usando **variables espectrales de Sentinel-2** en un **flujo reproducible** en AWS
+:::
+
+---
+
+## 📊 Objetivo General {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.3em; text-align: center; padding: 2em; background: rgba(255,255,255,0.1); border-radius: 15px;"}
+Construir y evaluar un **pipeline de punta a punta** para clasificar Bosque/No-Bosque usando Sentinel-2
+:::
+
+::: {.incremental style="font-size: 1.05em; margin-top: 2em;"}
+- ✅ Preprocesamiento robusto de datos satelitales
+- ✅ Etiquetado confiable con shapefiles validados
+- ✅ Entrenamiento distribuido en Spark (EMR)
+- ✅ Evaluación rigurosa con métricas por clase
+:::
+
+---
+
+## 🎯 Objetivos Específicos {background-color="#1E4D2B"}
+
+::: {.columns}
+::: {.column width="50%"}
+### Fase 1: Datos
+::: {style="font-size: 1.3em;"}
+- 📥 Implementar **ingesta eficiente** de datos multiespectrales
+- 🧹 Generar dataset **limpio de artefactos**
+- 📊 Extraer **características relevantes**
+:::
+:::
+
+::: {.column width="50%"}
+### Fase 2: Modelo
+::: {style="font-size: 1.3em;"}
+- 🤖 Diseñar modelos de **aprendizaje automático**
+- ⚡ Optimizar para **grandes volúmenes**
+- 📈 Validación y evaluación exhaustiva
+:::
+:::
+:::
+
+---
+
+## 📦 Dataset y Características {background-color="#2C5F2D"}
+
+::: {.columns}
+::: {.column width="60%"}
+### 🛰️ Fuente de Datos: Sentinel-2
+::: {style="font-size: 1.3em;"}
+- **Bandas espectrales**: B02-B08, B8A, B11, B12 (10 bandas)
+- **Índices**: NDVI, NDWI, NDMI
+- **Resolución espacial**: 10-20 metros
+- **Proyección**: EPSG:4326 (WGS84)
+:::
+:::
+
+::: {.column width="40%"}
+### 📊 Composición Temporal
+::: {style="font-size: 1.3em;"}
+- Mediana por banda
+- Percentil 25 y 75
+- Rango de valores
+- Número de observaciones
+:::
+:::
+:::
+
+::: {.fragment}
+::: {style="font-size: 1.05em; margin-top: 1em; padding: 1em; background: rgba(255,255,255,0.1); border-radius: 10px;"}
+**Dataset Final**: 8,008 muestras · 15 features · 5 zonas geográficas
+:::
+:::
+
+---
+
+## 🔄 Pipeline de Procesamiento {background-color="#234A23"}
+
+::: {style="font-size: 1.05em;"}
+### 📥 Fase 0: Ingesta de Datos
+
+::: {.incremental}
+1. **Carga de Shapefiles** a S3
+   - Perímetros de áreas objetivo
+   - Polígonos de cobertura boscosa
+   - Organización en `s3://mineria-project/raw/shapes/`
+
+2. **Descarga de Sentinel-2**
+   - Búsqueda de imágenes históricas
+   - Descarga de productos `.SAFE` completos
+   - Almacenamiento en `s3://mineria-project/raw/raw_copernicus/`
+:::
+:::
+
+::: {.fragment}
+::: {.callout-note icon=true style="font-size: 1.2em;"}
+Esta etapa prepara el **"raw zone"** del data lake para el procesamiento posterior
+:::
+:::
+
+---
+
+## 🛠️ Paso 1: Procesamiento Sentinel-2 {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.3em;"}
+**Script**: `01_procesar_sentinel_clip.py`
+
+### Entrada
+- Imágenes `.SAFE` desde S3
+- Shapefiles de perímetro por zona
+
+### Procesamiento
+::: {.incremental}
+1. Extracción de 10 bandas espectrales
+2. Remuestreo a resolución común (10m)
+3. Reproyección a EPSG:4326
+4. **Recorte (clipping)** al perímetro de la zona
+5. Aplicación de máscara de calidad (SCL)
+:::
+
+### Salida
+`staging/01_rasters_procesados_clipped/ZONA/*.tif` (GeoTIFF multibanda)
+:::
+
+---
+
+## 📊 Paso 2: Tabulación de Features {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.3em;"}
+**Script**: `03_tabular_features.py`
+
+### Proceso
+::: {.columns}
+::: {.column width="50%"}
+**Extracción Pixel-a-Pixel**
+- Lee cada banda del raster
+- Filtra píxeles con nodata
+- Almacena valores + coordenadas + fecha
+:::
+
+::: {.column width="50%"}
+**Composición Temporal**
+- Agrupa por coordenadas (x, y)
+- Calcula estadísticos por banda:
+  - Mediana (`B02_med`, ..., `B12_med`)
+  - Percentiles (p25, p75)
+  - Conteo de observaciones (`n_obs`)
+:::
+:::
+
+### Salida
+`composite_annual.parquet` · 15 features espectrales por píxel
+:::
+
+---
+
+## 🏷️ Paso 3: Rasterización de Labels {background-color="#234A23"}
+
+::: {style="font-size: 1.3em;"}
+**Script**: `04_rasterizar_labels.py`
+
+### Procesamiento Inteligente
+::: {.incremental}
+1. **Reproyección** de shapefiles al CRS del raster
+2. **Rasterización** de polígonos de bosque (valor = 1)
+3. **Erosión morfológica** de bordes (N píxeles)
+   - Elimina píxeles de transición con mezcla espectral
+   - Aumenta pureza de las clases
+4. **Construcción de máscara final**:
+   - `1` = Bosque (después de erosión)
+   - `0` = No-Bosque (dentro del perímetro)
+   - `-1` = Ignorar (fuera del perímetro)
+:::
+
+### Salida
+`forest_labels.tif` · Raster de etiquetas binarias
+:::
+
+---
+
+## 🔗 Paso 4: Unión Features + Labels {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.05em;"}
+**Script**: `05_unir_features_labels.py`
+
+::: {.columns}
+::: {.column width="50%"}
+### Proceso
+1. Carga tabla de features
+2. Extrae label para cada (x, y)
+3. Filtra píxeles con `label = -1`
+4. Combina en tabla única
+:::
+
+::: {.column width="50%"}
+### Resultado
+**18 columnas totales**:
+- 15 features espectrales
+- 1 label (0 o 1)
+- 2 metadata (x, y, fecha)
+:::
+:::
+
+### Salida
+`training_data.parquet` · Tabla lista para entrenamiento
+:::
+
+---
+
+## 🌐 Paso 5: Consolidación Multi-Zona {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.3em;"}
+**Script**: `process_all_zones_pipeline.py`
+
+### Automatización Completa
+::: {.incremental}
+1. **Descubrimiento automático** de zonas desde S3
+2. **Validación** de insumos (rasters + shapefiles)
+3. **Ejecución secuencial** de pasos 2-4 por zona
+4. **Consolidación**: concatena todas las zonas
+5. **Generación de reporte** con estadísticas
+:::
+
+### Salida Final
+::: {style="background: rgba(255,255,255,0.1); padding: 1em; border-radius: 10px; margin-top: 1em;"}
+`training_data_all_zones.parquet` · **8,008 muestras** · **5 zonas**
+:::
+:::
+
+---
+
+## 📈 Estadísticas del Dataset {background-color="#234A23"}
+
+::: {.columns}
+::: {.column width="50%"}
+### 📊 Distribución General
+::: {style="font-size: 1.3em;"}
+- **Total**: 8,008 píxeles
+- **Bosque (1)**: 1,820 (22.7%)
+- **No-Bosque (0)**: 6,188 (77.3%)
+- **Ratio**: 3.40:1
+- **Duración**: 64.7 segundos
+:::
+:::
+
+::: {.column width="50%"}
+### 🗺️ Zonas Procesadas
+::: {style="font-size: 1.2em;"}
+✅ **29_Cuiva** (Antioquia) - 4,306 muestras  
+✅ **32_LosNaranjos** (Antioquia) - 1,498 muestras  
+✅ **35_Bellavista** (Cundinamarca) - 271 muestras  
+✅ **14_ElDanubio** (Meta) - 432 muestras  
+⚠️ **79_SanJerónimo** (Casanare) - 1,501 muestras (desbalanceada)
+:::
+:::
+:::
+
+---
+
+## 🏆 Calidad del Dataset {background-color="#2C5F2D"}
+
+::: {.columns}
+::: {.column width="50%"}
+### ✅ Fortalezas
+::: {style="font-size: 1.3em;"}
+- Cantidad suficiente (8,008)
+- Diversidad geográfica (4 depttos)
+- Features completos (15 variables)
+- Labels validados
+- Erosión de bordes aplicada
+- Formato eficiente (Parquet)
+:::
+:::
+
+::: {.column width="50%"}
+### ⚠️ Consideraciones
+::: {style="font-size: 1.3em;"}
+- Desbalance moderado (3.4:1)
+- Zona 79 problemática (749:1)
+- Variabilidad temporal limitada
+- Zona 42 excluida (0 píxeles)
+:::
+:::
+:::
+
+---
+
+## 🤖 Entrenamiento del Modelo {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.05em;"}
+**Script**: `06_entrenar_rapido.py`
+
+### Algoritmo Seleccionado: Random Forest
+
+::: {.columns}
+::: {.column width="50%"}
+**Configuración**
+```python
+RandomForestClassifier(
+  n_estimators=100,
+  max_depth=10,
+  min_samples_split=10,
+  min_samples_leaf=5,
+  class_weight='balanced',
+  random_state=42
+)
+```
+:::
+
+::: {.column width="50%"}
+**División de Datos**
+- **Train**: 70% (5,608 muestras)
+- **Validation**: 15% (1,198 muestras)
+- **Test**: 15% (1,202 muestras)
+:::
+:::
+:::
+
+---
+
+## 📊 Resultados: Métricas Principales {background-color="#234A23"}
+
+::: {style="text-align: center;"}
+
+### 🎯 Rendimiento del Modelo en Test Set
+
+| Métrica | Valor | Interpretación |
+|:--------|------:|:---------------|
+| **Accuracy** | **90.35%** | Tasa de acierto general |
+| **Precision** | 72.89% | 73 de cada 100 predicciones de bosque son correctas |
+| **Recall** | **91.58%** | Detecta 9 de cada 10 áreas boscosas |
+| **F1-Score** | 81.17% | Balance entre precision y recall |
+| **ROC AUC** | **96.16%** | Excelente capacidad de discriminación |
+| **PR AUC** | **85.42%** | Muy bueno para clases desbalanceadas |
+
+:::
+
+---
+
+## 🎯 Matriz de Confusión {background-color="#2C5F2D"}
+
+::: {.columns}
+::: {.column width="60%"}
+::: {style="font-size: 1.05em;"}
+
+|                | Pred: No-Bosque | Pred: Bosque |
+|---------------:|----------------:|-------------:|
+| **Real: No-Bosque** | **836** ✅ | 93 ❌ |
+| **Real: Bosque** | 23 ❌ | **250** ✅ |
+
+:::
+
+### Interpretación
+::: {style="font-size: 1.2em;"}
+- **True Negatives**: 836 (90.0%)
+- **False Positives**: 93 (10.0%)
+- **False Negatives**: 23 (8.4%)
+- **True Positives**: 250 (91.6%)
+:::
+:::
+
+::: {.column width="40%"}
+::: {.callout-important icon=true style="font-size: 1.2em;"}
+## Tasa de Error
+**Falsos Negativos**: 8.42%
+
+El modelo pierde algunas áreas de bosque, pero la tasa es aceptable para detección.
+:::
+:::
+:::
+
+---
+
+## 🔝 Top 10 Features Más Importantes {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.2em;"}
+
+| Rank | Feature | Importancia | Descripción |
+|:----:|:--------|:------------|:------------|
+| 🥇 | `B03_med` | **18.90%** | Banda 3 (Verde) - Media |
+| 🥈 | `NDVI_range` | **11.67%** | Rango de NDVI (variabilidad) |
+| 🥉 | `B11_med` | **9.99%** | Banda 11 (SWIR) - Media |
+| 4 | `B05_med` | 9.31% | Banda 5 (Red Edge) - Media |
+| 5 | `n_obs` | 8.94% | Número de observaciones |
+| 6 | `B02_med` | 8.68% | Banda 2 (Azul) - Media |
+| 7 | `B04_med` | 7.40% | Banda 4 (Rojo) - Media |
+| 8 | `B12_med` | 6.58% | Banda 12 (SWIR) - Media |
+| 9 | `NDVI_p90` | 3.94% | Percentil 90 de NDVI |
+| 10 | `NDVI_p10` | 3.89% | Percentil 10 de NDVI |
+
+:::
+
+---
+
+## 📊 Análisis de Features {background-color="#234A23"}
+
+::: {.columns}
+::: {.column width="50%"}
+### 🎨 Bandas Espectrales
+::: {style="font-size: 1.3em;"}
+**61.86%** de importancia total
+
+- **Verde (B03)**: Reflectancia de vegetación
+- **SWIR (B11, B12)**: Contenido de humedad
+- **Red Edge (B05)**: Estado de la vegetación
+- **Visible (B02, B04)**: Características básicas
+:::
+:::
+
+::: {.column width="50%"}
+### 📈 Índices de Vegetación
+::: {style="font-size: 1.3em;"}
+**Variabilidad temporal clave**
+
+- **NDVI_range**: Cambios estacionales
+- **n_obs**: Calidad temporal
+- **Percentiles**: Extremos de condiciones
+
+Indica que la **dinámica temporal** es crucial
+:::
+:::
+:::
+
+---
+
+## ☁️ Infraestructura AWS {background-color="#2C5F2D"}
+
+::: {.columns}
+::: {.column width="33%"}
+### 💾 S3 Storage
+::: {style="font-size: 1.2em;"}
+**Bucket**: `mineria-project`
+
+- `raw/` - Datos originales
+- `staging/` - Procesados
+- `data/` - Datasets
+- `models/` - Modelos
+- `results/` - Métricas
+:::
+:::
+
+::: {.column width="33%"}
+### 🖥️ EC2 Computing
+::: {style="font-size: 1.2em;"}
+**Procesamiento de datos**
+
+- Scripts 01-05
+- Preprocesamiento
+- Feature extraction
+- Label generation
+:::
+:::
+
+::: {.column width="33%"}
+### ⚡ EMR Spark
+::: {style="font-size: 1.2em;"}
+**Entrenamiento ML**
+
+- Scripts 06-07
+- Distributed training
+- Grid search
+- Model evaluation
+:::
+:::
+:::
+
+---
+
+## 📋 Scripts del Pipeline {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.3em;"}
+
+| Script | Función | Salida |
+|:-------|:--------|:-------|
+| `01_procesar_sentinel_clip.py` | Procesa y recorta imágenes SAFE | Rasters multibanda |
+| `02_generar_mascaras.py` | Máscaras de calidad (nubes, sombras) | Máscaras binarias |
+| `03_tabular_features.py` | Extrae features espectrales | Tablas Parquet |
+| `04_rasterizar_labels.py` | Rasteriza shapefiles de bosque | Labels rasterizados |
+| `05_unir_features_labels.py` | Une features con labels | Dataset de entrenamiento |
+| `06_entrenar_rapido.py` | Entrena Random Forest | Modelo + métricas |
+| `07_evaluar_modelos.py` | Evalúa y reporta resultados | Reportes detallados |
+
+:::
+
+---
+
+## ✅ Fortalezas del Modelo {background-color="#234A23"}
+
+::: {.columns}
+::: {.column width="50%"}
+### 🎯 Rendimiento
+::: {style="font-size: 1.05em;"}
+1. **Alto Recall (91.58%)**
+   - Detecta la mayoría de áreas boscosas
+   - Bajo riesgo de perder bosque
+
+2. **Excelente ROC AUC (96.16%)**
+   - Muy buena discriminación
+   - Confiable en diferentes umbrales
+:::
+:::
+
+::: {.column width="50%"}
+### 📊 Interpretabilidad
+::: {style="font-size: 1.05em;"}
+3. **Buen F1-Score (81.17%)**
+   - Balance precision-recall
+   - Apropiado para producción
+
+4. **Features Interpretables**
+   - Bandas espectrales conocidas
+   - NDVI validado científicamente
+:::
+:::
+:::
+
+---
+
+## ⚠️ Áreas de Mejora {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.3em;"}
+
+### 1. Precision (72.89%)
+**Problema**: ~27% de falsos positivos
+
+**Soluciones**:
+- Más datos de entrenamiento
+- Ajuste de umbrales de clasificación
+- Features adicionales (texturas, temporales)
+
+### 2. Desbalance de Clases (77.3% vs 22.7%)
+**Estrategia Actual**: `class_weight='balanced'`
+
+**Alternativas**:
+- Técnicas de oversampling (SMOTE)
+- Undersampling estratégico
+- Ensemble con múltiples estrategias
+
+:::
+
+---
+
+## 🚀 Próximos Pasos {background-color="#1E4D2B"}
+
+::: {.columns}
+::: {.column width="50%"}
+### 🔬 Investigación
+::: {style="font-size: 1.3em;"}
+1. **Validación en campo**
+   - Verificar predicciones in-situ
+   - Zonas no incluidas en training
+
+2. **Análisis temporal**
+   - Detectar deforestación activa
+   - Series temporales de cambio
+:::
+:::
+
+::: {.column width="50%"}
+### 🛠️ Desarrollo
+::: {style="font-size: 1.3em;"}
+3. **Features adicionales**
+   - Índices: EVI, SAVI, NDMI
+   - Texturas: GLCM
+   - Variables climáticas
+
+4. **Ensemble de modelos**
+   - Combinar RF + GBT
+   - Voting classifier
+:::
+:::
+:::
+
+---
+
+## 📊 Recomendaciones Técnicas {background-color="#234A23"}
+
+::: {.incremental style="font-size: 1.05em;"}
+
+1. **Re-entrenamiento periódico**
+   - Actualizar modelo cada 3-6 meses
+   - Incorporar nuevos datos de zonas
+
+2. **Monitoreo de performance**
+   - Tracking continuo en producción
+   - Detección de drift en datos
+
+3. **Deployment en pipeline**
+   - Integrar en sistema automatizado
+   - API para predicciones en tiempo real
+
+4. **Validación geográfica**
+   - Split por zonas (no aleatorio)
+   - Evaluar generalización espacial
+
+:::
+
+---
+
+## 📁 Archivos Generados {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.3em;"}
+
+### 💾 Almacenamiento en S3
+
+**Dataset**
+- `s3://mineria-project/data/all/training_data_all_zones.parquet` (8,008 muestras)
+
+**Modelo Entrenado**
+- `s3://mineria-project/models/random_forest_model.pkl` (1.9 MB)
+
+**Resultados**
+- `s3://mineria-project/results/training_summary.json`
+- `s3://mineria-project/results/feature_importance.csv`
+- `s3://mineria-project/results/confusion_matrix.png`
+- `s3://mineria-project/results/RESULTADOS_ENTRENAMIENTO.md`
+
+:::
+
+---
+
+## 🎓 Conclusiones {background-color="#1E4D2B"}
+
+::: {style="font-size: 1.1em; line-height: 1.7;"}
+
+✅ **Pipeline completo y funcional** implementado exitosamente
+
+✅ **Modelo con 90.35% de accuracy** en detección de cobertura forestal
+
+✅ **Infraestructura escalable** en AWS (S3, EC2, EMR)
+
+✅ **Flujo reproducible** con scripts documentados
+
+✅ **Features interpretables** basadas en evidencia científica
+
+✅ **Dataset de calidad** con 8,008 muestras validadas
+
+:::
+
+---
+
+## 🌟 Impacto y Aplicaciones {background-color="#234A23"}
+
+::: {.columns}
+::: {.column width="50%"}
+### 🌍 Aplicaciones Ambientales
+::: {style="font-size: 1.3em;"}
+- Monitoreo de deforestación
+- Conservación de biodiversidad
+- Cumplimiento normativo
+- Reportes de carbono
+:::
+:::
+
+::: {.column width="50%"}
+### 💼 Valor Comercial
+::: {style="font-size: 1.3em;"}
+- Due diligence ambiental
+- Certificación forestal
+- Evaluación de riesgos
+- Planificación territorial
+:::
+:::
+:::
+
+---
+
+## 📚 Referencias y Documentación {background-color="#2C5F2D"}
+
+::: {style="font-size: 1.05em;"}
+
+### 📖 Documentación del Proyecto
+- `README.md` - Guía general y resultados
+- `DATA_PREP.md` - Preparación detallada de datos
+- `RESULTADOS_ENTRENAMIENTO.md` - Análisis completo de métricas
+- `config/*.yaml` - Configuración de parámetros
+
+### 🔗 Recursos Externos
+- [Sentinel-2 Documentation](https://sentinel.esa.int/web/sentinel/missions/sentinel-2)
+- [AWS EMR Spark](https://aws.amazon.com/emr/)
+- [Scikit-learn Random Forest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html)
+
+:::
+
+---
+
+## 🙏 ¡Gracias! {background-color="#2C5F2D"}
+
+::: {style="text-align: center; font-size: 1.5em;"}
+
+### Preguntas y Discusión
+
+**Equipo de Minería de Datos**
+
+📧 Contacto: [equipo@proyecto-mineria.com]
+
+🔗 GitHub: [github.com/maraosoc/mineria_project]
+
+📊 Dashboard: [dashboard.proyecto-mineria.com]
+
+:::
+
+::: {.notes}
+Slide final para preguntas del público.
+:::

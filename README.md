@@ -206,33 +206,20 @@ mineria_project/
 │   └── pipeline_config.yaml
 ├── docs/                            # Documentación
 │   ├── AWS_SETUP.md
-│   ├── EMR_TRAINING.md
-│   ├── QUICK_REFERENCE.md
-│   ├── TRAINING_IMPROVEMENTS.md
 │   └── RESULTADOS_ENTRENAMIENTO.md  # ⭐ Reporte completo
-├── infrastructure/                  # Infraestructura como código
+├── infrastructure/                  # Infraestructura como código (Terraform)
 │   ├── backend.tf
 │   ├── main.tf
 │   ├── s3.tf
-│   ├── variables.tf
-│   ├── terraform.tfvars
-│   └── modules/
-│       ├── ec2/                     # Módulo EC2
-│       └── emr/                     # Módulo EMR
-├── scripts/                         # Scripts de procesamiento
-│   ├── 01_procesar_sentinel_clip.py # Procesamiento Sentinel-2 ✅
+│   └── variables.tf
+├── scripts/                         # Pipeline de procesamiento
+│   ├── 01_procesar_sentinel.py      # Procesamiento Sentinel-2 ✅
 │   ├── 02_generar_mascaras.py       # Máscaras de calidad ✅
-│   ├── 03_tabular_features.py       # Features tabulares ✅
-│   ├── 04_rasterizar_labels.py      # Rasterización de labels ✅
-│   ├── 05_unir_features_labels.py   # Unión de datos ✅
-│   ├── 06_entrenar_rapido.py        # Entrenamiento rápido ✅
-│   ├── 07_evaluar_modelos.py        # Evaluación de modelos
-│   ├── process_all_zones_parallel.py # Orquestador paralelo ✅
-│   ├── submit_emr_steps.py          # Submitter de EMR
-│   ├── bootstrap/                   # Scripts de bootstrap EMR
-│   └── orchestration/               # Scripts de orquestación
-│       ├── run_ec2_pipeline.py
-│       └── run_emr_pipeline.py
+│   ├── 03_tabular_features.py       # Extracción features ✅
+│   ├── 04_rasterizar_labels.py      # Rasterización labels ✅
+│   ├── 05_unir_features_labels.py   # Dataset final ✅
+│   ├── 06_entrenar_rapido.py        # Entrenamiento Random Forest ✅
+│   └── 07_evaluar_modelos.py        # Evaluación y predicción
 ├── requirements.txt                 # Dependencias Python
 └── README.md                        # Este archivo
 ```
@@ -241,141 +228,130 @@ mineria_project/
 
 ## 🔧 Configuración
 
-### Variables de Terraform (`terraform.tfvars`)
+### Requisitos del Sistema
+
+```bash
+# Python 3.11+
+python --version
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Principales dependencias:
+# - scikit-learn >= 1.3.0
+# - pandas >= 2.0.0
+# - numpy >= 1.24.0
+# - rasterio >= 1.3.0
+# - geopandas >= 0.13.0
+```
+
+### Configuración de AWS
+
+```bash
+# Configurar credenciales AWS
+aws configure
+
+# Verificar acceso al bucket S3
+aws s3 ls s3://mineria-project/
+```
+
+### Variables de Terraform (Opcional)
+
+Si deseas desplegar la infraestructura en AWS:
 
 ```hcl
-# General
+# terraform.tfvars
 project_name = "mineria"
 environment  = "dev"
 aws_region   = "us-east-1"
-
-# EC2
-ec2_instance_type = "c5.4xlarge"  # 16 vCPUs, 32GB RAM
-ec2_volume_size   = 100           # GB
-
-# S3
 s3_bucket_name = "mineria-project"
-
-# Networking
-allowed_ssh_cidr = ["0.0.0.0/0"]  # ⚠️ Cambiar en producción
 ```
 
-### Zonas Procesadas
+---
 
-Las 15 zonas procesadas actualmente:
+## � Dataset
 
-1. 14_ElDanubio_Granada_Meta
-2. 21_LaPalmera_Granada_Cundinamarca
-3. 28_Montebello_Barrancabermeja_Santander
-4. 29_Cuiva_SantaRosadeOsos_Antioquia
-5. 32_LosNaranjos_Venecia_Antioquia
-6. 35_Bellavista_Albán_Cundinamarca
-7. 41_Cárpatos_LaUnión_Antioquia
-8. 42_VillaLuzA_Unguía_Chocó
-9. 44_SantaRosa_SanLuisdeGaceno_Boyacá
-10. 54_LaAlameda_Prado_Tolima
-11. 55_ElEdén_SantaRosadeOsos_Antioquia
-12. 59_SanGabriel_Belmira_Antioquia
-13. 69_Guabineros_Zarzal_ValledelCauca
-14. 72_ElPorro_PuebloNuevo_Córdoba
-15. 79_SanJerónimo_Pore_Casanare
+### Características
+
+- **Total de muestras:** 8,008 píxeles etiquetados
+- **Features:** 15 características espectrales y texturales
+  - Bandas Sentinel-2: B02, B03, B04, B08, B11, B12 (mediana y desviación estándar)
+  - NDVI: mínimo, máximo y rango
+- **Classes:** Binario (bosque / no bosque)
+  - No bosque: 6,188 muestras (77.3%)
+  - Bosque: 1,820 muestras (22.7%)
+- **División:** Train 70% / Val 15% / Test 15% (estratificado)
+- **Zonas:** 5 regiones de Colombia con diferentes ecosistemas
+
+### Features Más Importantes
+
+| Feature | Importancia | Descripción |
+|---------|-------------|-------------|
+| B03_med | 18.90% | Banda verde (vegetación) |
+| NDVI_range | 11.67% | Rango de NDVI (variabilidad) |
+| B11_med | 9.99% | Infrarrojo de onda corta |
+| B08_med | 9.81% | Infrarrojo cercano |
+| NDVI_max | 8.16% | NDVI máximo |
 
 ---
 
-## 🐛 Problemas Conocidos y Soluciones
+## 🎯 Reproducibilidad
 
-### 1. CRS Corrupto en Archivos SAFE
+### Ejecutar el Pipeline Completo
 
-**Problema:** 30-50% de archivos Sentinel-2 tienen CRS incorrecto en metadatos.
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/tu-usuario/mineria_project.git
+cd mineria_project
 
-**Solución Implementada:**
-- Detección automática de tile code (e.g., `T18N`) mediante regex
-- Corrección de CRS basada en el tile code
-- Logging de archivos corruptos a S3
+# 2. Instalar dependencias
+pip install -r requirements.txt
 
-### 2. AWS CLI Roto en Ubuntu 22.04
+# 3. Configurar AWS
+aws configure
+# Ingresar: Access Key, Secret Key, Region (us-east-1)
 
-**Problema:** `KeyError: 'opsworkscm'` en comandos `aws s3`.
+# 4. Ejecutar pipeline completo
+python scripts/01_procesar_sentinel.py
+python scripts/02_generar_mascaras.py
+python scripts/03_tabular_features.py
+python scripts/04_rasterizar_labels.py
+python scripts/05_unir_features_labels.py
+python scripts/06_entrenar_rapido.py
 
-**Solución:**
-- Usar `boto3` directamente en Python en lugar de AWS CLI
-- Scripts incluyen workaround automático
-
-### 3. Shapefiles en CTM_12 (EPSG:3116)
-
-**Problema:** Shapefiles de zonas están en proyección diferente a Sentinel-2.
-
-**Solución:**
-- Reproyección automática en script 01
-- Validación de bounds geográficos para Colombia
-
----
-
-## 📊 Resultados del Script 01
-
-### Resumen de Ejecución
-
-```
-Duración total: 18.0 minutos
-Zonas procesadas: 15/15 (100%)
-Workers paralelos: 8
-Instancia: c5.4xlarge (16 vCPUs, 32GB RAM)
-
-Resultados por zona:
-  ✅ 14_ElDanubio_Granada_Meta: 18.0 min
-  ✅ 21_LaPalmera_Granada_Cundinamarca: 3.1 min
-  ✅ 28_Montebello_Barrancabermeja_Santander: 2.9 min
-  ✅ 29_Cuiva_SantaRosadeOsos_Antioquia: 15.8 min
-  ✅ 32_LosNaranjos_Venecia_Antioquia: 14.5 min
-  ✅ 35_Bellavista_Albán_Cundinamarca: 3.1 min
-  ✅ 41_Cárpatos_LaUnión_Antioquia: 4.8 min
-  ✅ 42_VillaLuzA_Unguía_Chocó: 0.5 min
-  ✅ 44_SantaRosa_SanLuisdeGaceno_Boyacá: 14.7 min
-  ✅ 54_LaAlameda_Prado_Tolima: 11.3 min
-  ✅ 55_ElEdén_SantaRosadeOsos_Antioquia: 10.2 min
-  ✅ 59_SanGabriel_Belmira_Antioquia: 4.1 min
-  ✅ 69_Guabineros_Zarzal_ValledelCauca: 2.0 min
-  ✅ 72_ElPorro_PuebloNuevo_Córdoba: 7.3 min
-  ✅ 79_SanJerónimo_Pore_Casanare: 10.5 min
+# 5. Verificar resultados en S3
+aws s3 ls s3://mineria-project/models/
+aws s3 ls s3://mineria-project/results/
 ```
 
-### Logs de Corrupción
+### Tiempo de Ejecución Estimado
 
-16 archivos JSON generados con detalles de archivos corruptos:
-- Ubicación: `s3://mineria-project/logs/01_procesar_sentinel/`
-- Formato: `corrupt_files_<ZONE>_<TIMESTAMP>.json`
-- Incluye: safe_file, expected_crs, actual_crs, tile_code, error_message
-
----
-
-## 💰 Costos Estimados
-
-### Script 01 (Procesamiento Sentinel-2)
-
-- **Instancia:** c5.4xlarge @ $0.68/hora
-- **Duración:** 18 minutos = 0.3 horas
-- **Costo EC2:** ~$0.20
-- **Costo S3:** Negligible (< $0.01)
-- **Total:** ~$0.21 por ejecución completa
-
-### Scripts 06-07 (EMR Spark)
-
-- **Master:** m5.xlarge @ $0.192/hora
-- **Core (2x):** m5.xlarge @ $0.192/hora cada uno
-- **Duración estimada:** 1-2 horas
-- **Costo estimado:** ~$1.15 - $2.30
+| Script | Duración | Hardware Recomendado |
+|--------|----------|---------------------|
+| Script 01 | ~30 min | 8+ cores, 16GB RAM |
+| Script 02 | ~10 min | 4+ cores, 8GB RAM |
+| Script 03 | ~15 min | 4+ cores, 8GB RAM |
+| Script 04 | ~5 min | 4+ cores, 8GB RAM |
+| Script 05 | ~2 min | 2+ cores, 4GB RAM |
+| Script 06 | ~1 min | 4+ cores, 8GB RAM |
+| **Total** | **~1 hora** | |
 
 ---
 
-## 📝 Próximos Pasos
+## 📖 Documentación Adicional
 
-1. **Script 02:** Generación de máscaras de calidad
-2. **Script 03:** Extracción de features tabulares
-3. **Script 04:** Rasterización de labels
-4. **Script 05:** Unión de features con labels
-5. **Scripts 06-07:** Entrenamiento y evaluación en EMR
-6. **Optimización:** Fine-tuning de modelos
-7. **Deployment:** Pipeline automatizado
+- **[docs/RESULTADOS_ENTRENAMIENTO.md](docs/RESULTADOS_ENTRENAMIENTO.md)**: Reporte completo con análisis de features, matriz de confusión y recomendaciones
+- **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)**: Guía detallada para configurar infraestructura AWS
+
+---
+
+## 🤝 Contribución
+
+Este es un proyecto de investigación académica. Si tienes sugerencias o encuentras problemas:
+
+1. Abre un **Issue** describiendo el problema
+2. Si tienes una solución, crea un **Pull Request**
+3. Para consultas académicas, contacta al equipo del proyecto
 
 ---
 
@@ -385,11 +361,12 @@ Ver archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
-## 👥 Contribución
+## � Contacto
 
-Este es un proyecto académico. Para consultas o contribuciones, contactar al equipo del proyecto.
+Para consultas sobre el proyecto, metodología o colaboraciones, contactar al equipo de investigación.
 
 ---
 
-**Última actualización:** 12 de Noviembre, 2025  
-**Estado:** Script 01 completado exitosamente ✅
+**Última actualización:** Diciembre 2024  
+**Estado:** ✅ Pipeline completo - Modelo en producción
+
