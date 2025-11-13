@@ -133,6 +133,7 @@ Desarrollar una infraestructura de big data para detectar bosque a partir de im�
 - **Cantidad**: 20 fincas
 :::
 :::
+:::
 
 ---
 
@@ -197,6 +198,7 @@ Desarrollar una infraestructura de big data para detectar bosque a partir de im�
 - **Variabilidad temporal limitada**
   - Composite anual
   - No series temporales completas
+:::
 :::
 :::
 :::
@@ -479,16 +481,8 @@ La **dinámica temporal** es crucial para discriminación
 
 ::: {style="text-align: center; font-size: 1.8em; margin-top: 2em;"}
 
-### Preguntas y Discusión
-
 :::
 
 ::: {style="text-align: center; font-size: 1.2em; margin-top: 2em;"}
-
-**Equipo de Minería de Datos**
-
-📊 Proyecto: Detección de Deforestación con ML
-
-🛰️ Tecnologías: Sentinel-2 · AWS · Spark · Python
 
 :::
