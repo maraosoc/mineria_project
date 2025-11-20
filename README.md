@@ -41,7 +41,7 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 
 ---
 
-## �️ Arquitectura del Pipeline
+## Arquitectura del Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -67,37 +67,6 @@ Pipeline completo de procesamiento de imágenes Sentinel-2 y clasificación de c
 │     └─ results/                  → Métricas y reportes          │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## 📊 Estado Actual del Proyecto
-
-### ✅ Pipeline Completo Ejecutado
-
-**Script 01 - Procesamiento Sentinel-2:**
-- ✅ Procesamiento de imágenes SAFE con bandas de 20m (B02-B07, B8A, B11, B12)
-- ✅ Recorte automático con shapefiles por zona
-- ✅ Corrección automática de CRS corrupto
-- ✅ **5 zonas procesadas exitosamente**
-
-**Scripts 02-05 - Preparación de Datos:**
-- ✅ Generación de máscaras de calidad
-- ✅ Extracción de features tabulares (bandas + NDVI)
-- ✅ Rasterización de labels
-- ✅ Unión de features con labels
-- ✅ **Dataset final: 8,008 muestras**
-
-**Script 06 - Entrenamiento:**
-- ✅ Random Forest con grid search
-- ✅ Validación con split 70/15/15
-- ✅ Selección de mejor modelo basado en PR AUC
-- ✅ **Modelo en producción con 90.35% accuracy**
-
-**Resultados Guardados en S3:**
-- ✅ `s3://mineria-project/models/random_forest_model.pkl` (1.9 MB)
-- ✅ `s3://mineria-project/results/training_summary.json`
-- ✅ `s3://mineria-project/results/feature_importance.csv`
-- ✅ `s3://mineria-project/results/RESULTADOS_ENTRENAMIENTO.md`
 
 ---
 
@@ -170,29 +139,16 @@ python scripts/06_entrenar_rapido.py \
   --output ./models/new_model/
 ```
 
-### 4. Verificar Resultados
+### 4. Verificar y Descargar Resultados
 
 ```bash
-# Ver métricas del modelo
-cat models/training_summary.json
-
-# Ver features más importantes
-cat models/feature_importance.csv
-
 # Listar archivos en S3
 aws s3 ls s3://mineria-project/results/ --recursive
 aws s3 ls s3://mineria-project/models/ --recursive
-```
 
-### 5. Descargar Resultados
-
-```bash
-# Descargar todos los resultados
-aws s3 sync s3://mineria-project/results/ ./local_results/
-aws s3 sync s3://mineria-project/models/ ./local_models/
-
-# Ver reporte completo
-cat local_results/RESULTADOS_ENTRENAMIENTO.md
+# Descargar resultados y modelos
+aws s3 sync s3://mineria-project/results/ 
+aws s3 sync s3://mineria-project/models/ 
 ```
 
 ---
@@ -201,26 +157,50 @@ cat local_results/RESULTADOS_ENTRENAMIENTO.md
 
 ```
 mineria_project/
-├── config/                          # Configuraciones
-│   ├── aws_config.yaml
-│   └── pipeline_config.yaml
+├── config/                          # Configuraciones del pipeline
+│   ├── aws_config.yaml              # Credenciales y configuración AWS
+│   ├── pipeline_config.yaml         # Parámetros del pipeline
+│   └── execution_config.yaml        # Configuración de ejecución
+│
 ├── docs/                            # Documentación
-│   ├── AWS_SETUP.md
-│   └── RESULTADOS_ENTRENAMIENTO.md  # ⭐ Reporte completo
-├── infrastructure/                  # Infraestructura como código (Terraform)
-│   ├── backend.tf
-│   ├── main.tf
-│   ├── s3.tf
-│   └── variables.tf
-├── scripts/                         # Pipeline de procesamiento
-│   ├── 01_procesar_sentinel.py      # Procesamiento Sentinel-2 ✅
-│   ├── 02_generar_mascaras.py       # Máscaras de calidad ✅
-│   ├── 03_tabular_features.py       # Extracción features ✅
-│   ├── 04_rasterizar_labels.py      # Rasterización labels ✅
-│   ├── 05_unir_features_labels.py   # Dataset final ✅
-│   ├── 06_entrenar_rapido.py        # Entrenamiento Random Forest ✅
-│   └── 07_evaluar_modelos.py        # Evaluación y predicción
+│   ├── RESULTADOS_ENTRENAMIENTO.md  # ⭐ Reporte completo de resultados
+│   ├── AWS_SETUP.md                 # Guía de configuración AWS
+│   ├── index.html                   # 🌐 Presentación GitHub Pages
+│   └── [otros archivos de docs]
+│
+├── infrastructure/                  # Infraestructura como Código (Terraform)
+│   ├── main.tf                      # Configuración principal
+│   ├── s3.tf                        # Bucket S3
+│   ├── backend.tf                   # Backend remoto
+│   ├── variables.tf                 # Variables
+│   └── modules/                     # Módulos reutilizables
+│       ├── ec2/                     # Instancias EC2
+│       └── emr/                     # Cluster EMR
+│
+├── scripts/                         # 🔧 Pipeline de Procesamiento
+│   │
+│   ├── 01_procesar_sentinel.py      # ✅ Procesamiento imágenes Sentinel-2
+│   ├── 02_generar_mascaras.py       # ✅ Máscaras de calidad
+│   ├── 03_tabular_features.py       # ✅ Extracción de features
+│   ├── 04_rasterizar_labels.py      # ✅ Rasterización de labels
+│   ├── 05_unir_features_labels.py   # ✅ Unión dataset final
+│   ├── 06_entrenar_rapido.py        # ✅ Entrenamiento Random Forest
+│   ├── 07_evaluar_modelos.py        # 🔄 Evaluación y predicción
+│   │
+│   ├── orchestration/               # 🎯 Scripts de orquestación
+│   │   ├── run_ec2_pipeline.py      # Orquestador para EC2
+│   │   └── run_emr_pipeline.py      # Orquestador para EMR
+│   │
+│   ├── process_all_zones_pipeline.py   # 🚀 Procesar todas las zonas
+│   ├── process_all_zones_parallel.py   # 🚀 Procesamiento paralelo
+│   │
+│   └── [otros scripts auxiliares]
+│
+├── presentation/                    # Código fuente de la presentación
+│   └── mineria_presentacion_final.qmd
+│
 ├── requirements.txt                 # Dependencias Python
+├── LICENSE                          # Licencia del proyecto
 └── README.md                        # Este archivo
 ```
 
@@ -269,7 +249,7 @@ s3_bucket_name = "mineria-project"
 
 ---
 
-## � Dataset
+## Dataset
 
 ### Características
 
@@ -312,6 +292,15 @@ aws configure
 # Ingresar: Access Key, Secret Key, Region (us-east-1)
 
 # 4. Ejecutar pipeline completo
+
+## Opción 4A: Scripts de Orquestación (Recomendado)
+# Procesar todas las zonas automáticamente
+python scripts/process_all_zones_pipeline.py
+
+# O ejecutar pipeline completo en EC2 con orquestador
+python scripts/orchestration/run_ec2_pipeline.py --mode sequential
+
+## Opción 4B: Paso por Paso (Para validación/debug)
 python scripts/01_procesar_sentinel.py
 python scripts/02_generar_mascaras.py
 python scripts/03_tabular_features.py
@@ -341,7 +330,22 @@ aws s3 ls s3://mineria-project/results/
 ## 📖 Documentación Adicional
 
 - **[docs/RESULTADOS_ENTRENAMIENTO.md](docs/RESULTADOS_ENTRENAMIENTO.md)**: Reporte completo con análisis de features, matriz de confusión y recomendaciones
-- **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)**: Guía detallada para configurar infraestructura AWS
+- **[docs/DATA_PREP.md](docs/DATA_PREP.md)**: Guía detallada del pipeline de preprocesamiento (Scripts 01-05) y generación del dataset
+- **[docs/EMR_TRAINING.md](docs/EMR_TRAINING.md)**: Documentación para entrenamiento distribuido con AWS EMR y Apache Spark
+- **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)**: Guía de configuración de infraestructura AWS con Terraform
+- **[Presentación Interactiva](https://maraosoc.github.io/mineria_project/)**: Slides del proyecto con Reveal.js
+
+### 🌐 Presentación del Proyecto
+
+La presentación interactiva del proyecto está disponible en GitHub Pages:
+
+**🔗 https://maraosoc.github.io/mineria_project/**
+
+**Navegación:**
+- Usa las flechas del teclado (←/→) para navegar entre slides
+- Presiona `F` para pantalla completa
+- Presiona `S` para ver notas del presentador
+- Presiona `ESC` para vista general
 
 ---
 
@@ -358,15 +362,3 @@ Este es un proyecto de investigación académica. Si tienes sugerencias o encuen
 ## 📄 Licencia
 
 Ver archivo [LICENSE](LICENSE) para más detalles.
-
----
-
-## � Contacto
-
-Para consultas sobre el proyecto, metodología o colaboraciones, contactar al equipo de investigación.
-
----
-
-**Última actualización:** Diciembre 2024  
-**Estado:** ✅ Pipeline completo - Modelo en producción
-
